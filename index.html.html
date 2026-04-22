@@ -1,0 +1,1482 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gestão de Demandas — JSR Sistemas</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--navy:#2B3990;--navy2:#1e2d7a;--orange:#C96A20;--orange2:#a85518;--navy-light:#eef0fa;--orange-light:#fdf0e6}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f4f5f9;color:#1a1a18;min-height:100vh}
+code{font-family:monospace}
+
+/* LOGIN */
+.login-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:1rem;background:linear-gradient(145deg,#eef0fa 0%,#fdf0e6 100%)}
+.login-card{background:#fff;border-radius:22px;padding:2.5rem 2rem;width:100%;max-width:390px;box-shadow:0 6px 40px rgba(43,57,144,.13)}
+.login-logo-wrap{display:flex;justify-content:center;margin-bottom:1.5rem;background:#fff;border-radius:12px;padding:10px}
+.login-logo-wrap img{height:70px;object-fit:contain;background:transparent}
+.login-title{font-size:18px;font-weight:700;color:var(--navy);text-align:center;margin-bottom:4px;letter-spacing:-.01em}
+.login-frase{font-size:12px;color:#888;text-align:center;margin-bottom:1.75rem;font-style:italic;line-height:1.5}
+.form-group{margin-bottom:1rem}
+.form-label{font-size:12px;color:#666;margin-bottom:5px;display:block;font-weight:600;letter-spacing:.01em}
+.form-input{width:100%;padding:10px 13px;border:1.5px solid #dde0f0;border-radius:10px;font-size:14px;outline:none;font-family:inherit;color:#1a1a18;background:#fff;transition:border-color .2s}
+.form-input:focus{border-color:var(--navy)}
+select.form-input{cursor:pointer}
+textarea.form-input{resize:vertical;min-height:80px;line-height:1.5}
+.btn-primary{width:100%;padding:12px;background:var(--navy);color:white;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:6px;transition:background .2s;letter-spacing:.02em}
+.btn-primary:hover{background:var(--navy2)}
+.btn-primary:active{background:#152066}
+.error-msg{color:#A32D2D;font-size:12px;margin-top:8px;text-align:center;min-height:18px}
+
+/* APP LAYOUT */
+.app{display:none}
+.sidebar{position:fixed;top:0;left:0;bottom:0;width:234px;background:#fff;border-right:1px solid #e4e6f0;display:flex;flex-direction:column;z-index:50}
+.sidebar-brand{padding:1.25rem 1.25rem .9rem;border-bottom:1px solid #e4e6f0;display:flex;align-items:center;gap:10px}
+.sidebar-brand img{height:38px;object-fit:contain}
+.sidebar-user{padding:.65rem 1.25rem;background:#f7f8fc;border-bottom:1px solid #e4e6f0}
+.sidebar-user-name{font-size:13px;font-weight:600;color:#1a1a18}
+.sidebar-user-role{font-size:11px;color:#888;margin-top:1px}
+.nav-section{padding:.75rem 0;flex:1;overflow-y:auto}
+.nav-label{font-size:10px;color:#aaa;font-weight:700;letter-spacing:.07em;text-transform:uppercase;padding:0 1.25rem .4rem}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 1.25rem;font-size:13.5px;color:#555;cursor:pointer;border:none;background:none;width:100%;text-align:left;font-family:inherit;transition:all .15s}
+.nav-item:hover{background:#f4f5f9;color:#1a1a18}
+.nav-item.active{background:var(--navy-light);color:var(--navy);font-weight:700}
+.nav-icon{font-size:15px;width:22px;text-align:center;flex-shrink:0}
+.sidebar-footer{padding:1rem 1.25rem;border-top:1px solid #e4e6f0}
+.btn-logout{width:100%;padding:9px;border:1.5px solid #dde0f0;border-radius:10px;background:#fff;font-size:13px;cursor:pointer;color:#666;font-family:inherit;transition:all .15s;font-weight:500}
+.btn-logout:hover{background:#f4f5f9;color:#1a1a18}
+
+.main{margin-left:234px;padding:2rem;min-height:100vh}
+.page{display:none}
+.page.active{display:block}
+.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:12px}
+.page-title{font-size:20px;font-weight:700;color:#1a1a18;letter-spacing:-.02em}
+
+/* STATS */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;margin-bottom:1.5rem}
+.stat-card{background:#fff;border-radius:14px;padding:1rem 1.25rem;border:1px solid #e4e6f0}
+.stat-label{font-size:11px;color:#888;margin-bottom:6px;font-weight:500}
+.stat-value{font-size:28px;font-weight:700;letter-spacing:-.02em;color:#1a1a18}
+.stat-value.blue{color:var(--navy)}
+.stat-value.orange{color:var(--orange)}
+.stat-value.green{color:#1D9E75}
+.stat-value.red{color:#A32D2D}
+
+/* CARDS & TABLES */
+.card{background:#fff;border-radius:14px;border:1px solid #e4e6f0;overflow:hidden}
+.card-header{padding:1rem 1.25rem;border-bottom:1px solid #e4e6f0;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.card-title{font-size:14px;font-weight:600;color:#1a1a18}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{padding:9px 12px;text-align:left;font-weight:600;font-size:11px;color:#888;background:#f7f8fc;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
+td{padding:11px 12px;border-top:1px solid #f0f1f8;color:#1a1a18;vertical-align:middle}
+tr:hover td{background:#fafbff}
+.action-btn{background:none;border:none;cursor:pointer;font-size:12px;color:#666;padding:4px 8px;border-radius:6px;font-family:inherit;font-weight:500;transition:all .15s}
+.action-btn:hover{background:#eef0fa;color:var(--navy)}
+.action-btn.danger:hover{background:#FCEBEB;color:#A32D2D}
+.empty-row td{text-align:center;color:#b4b2a9;padding:2.5rem;font-size:13px}
+
+/* BADGES */
+.badge{font-size:11px;padding:3px 10px;border-radius:99px;font-weight:600;white-space:nowrap;display:inline-block}
+.b-alta{background:#FCEBEB;color:#A32D2D}
+.b-media{background:var(--orange-light);color:var(--orange2)}
+.b-baixa{background:#E1F5EE;color:#0F6E56}
+.b-pendente{background:var(--navy-light);color:var(--navy)}
+.b-andamento{background:var(--orange-light);color:var(--orange2)}
+.b-concluido{background:#E1F5EE;color:#0F6E56}
+.b-cancelado{background:#f0f1f8;color:#888}
+.b-admin{background:var(--navy-light);color:var(--navy)}
+.b-ativo{background:#E1F5EE;color:#0F6E56}
+.b-inativo{background:#f0f1f8;color:#888}
+.b-restrito{background:#FCEBEB;color:#7a1a1a}
+
+/* BUTTONS */
+.btn-add{padding:8px 16px;background:var(--navy);color:white;border:none;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:background .15s;white-space:nowrap}
+.btn-add:hover{background:var(--navy2)}
+.btn-sec{padding:9px 18px;border:1.5px solid #dde0f0;border-radius:9px;background:#fff;font-size:13px;cursor:pointer;font-family:inherit;color:#555;font-weight:500;transition:all .15s}
+.btn-sec:hover{background:#f4f5f9}
+.btn-save{padding:9px 20px;background:var(--navy);color:white;border:none;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:background .15s}
+.btn-save:hover{background:var(--navy2)}
+.btn-orange{padding:8px 16px;background:var(--orange);color:white;border:none;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:background .15s;white-space:nowrap}
+.btn-orange:hover{background:var(--orange2)}
+
+/* FILTERS */
+.filter-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1rem;align-items:center}
+.filter-select{padding:7px 10px;font-size:12px;border:1.5px solid #dde0f0;border-radius:8px;background:#fff;color:#555;outline:none;font-family:inherit;cursor:pointer}
+.search-box{padding:8px 12px;font-size:13px;border:1.5px solid #dde0f0;border-radius:8px;background:#fff;color:#1a1a18;outline:none;font-family:inherit;min-width:200px;flex:1;transition:border-color .2s}
+.search-box:focus{border-color:var(--navy)}
+
+/* MODAL */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;display:flex;align-items:center;justify-content:center;padding:1rem;overflow-y:auto}
+.modal{background:#fff;border-radius:18px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto;box-shadow:0 10px 52px rgba(43,57,144,.18);-webkit-overflow-scrolling:touch}
+.modal-head{padding:1.25rem 1.5rem;border-bottom:1px solid #e4e6f0;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1}
+.modal-title{font-size:16px;font-weight:700;color:var(--navy)}
+.modal-close{background:none;border:none;font-size:22px;cursor:pointer;color:#888;line-height:1;padding:0 4px}
+.modal-close:hover{color:#1a1a18}
+.modal-body{padding:1.5rem;display:flex;flex-direction:column;gap:1rem}
+.modal-foot{padding:1rem 1.5rem;border-top:1px solid #e4e6f0;display:flex;gap:8px;justify-content:flex-end}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+/* FORM PAGE */
+.form-card{background:#fff;border-radius:14px;border:1px solid #e4e6f0;padding:1.5rem;max-width:580px;display:flex;flex-direction:column;gap:1rem}
+
+/* IMAGE UPLOAD */
+.img-upload-area{border:2px dashed #dde0f0;border-radius:10px;padding:1.25rem;text-align:center;cursor:pointer;transition:border-color .2s;position:relative}
+.img-upload-area:hover{border-color:var(--navy)}
+.img-upload-area input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.img-upload-area p{font-size:13px;color:#888;margin-top:6px}
+.img-preview-wrap{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.img-thumb{position:relative;display:inline-block}
+.img-thumb img{width:80px;height:80px;object-fit:cover;border-radius:8px;border:1px solid #e4e6f0}
+.img-thumb button{position:absolute;top:-5px;right:-5px;background:#A32D2D;color:white;border:none;border-radius:50%;width:18px;height:18px;font-size:11px;cursor:pointer;line-height:18px;text-align:center;padding:0}
+
+/* COMUNICADOS */
+.comunic-card{background:#fff;border-radius:14px;border:1px solid #e4e6f0;overflow:hidden;margin-bottom:1.25rem}
+.comunic-item{padding:1rem 1.25rem;border-top:1px solid #f0f1f8}
+.comunic-item:first-child{border-top:none}
+.comunic-text{font-size:14px;color:#1a1a18;line-height:1.6;margin-bottom:4px}
+.comunic-meta{font-size:11px;color:#aaa}
+.comunic-empty{padding:2rem;text-align:center;color:#b4b2a9;font-size:13px}
+
+/* PRIVATE BADGE */
+.b-private{background:#f0f1f8;color:var(--navy);font-size:11px;padding:2px 8px;border-radius:99px;font-weight:600}
+.b-shared{background:#E1F5EE;color:#0F6E56;font-size:11px;padding:2px 8px;border-radius:99px;font-weight:600}
+.lock-icon{font-size:13px;margin-right:3px;opacity:.7}
+
+/* PDF ATTACHMENT */
+.pdf-thumb{display:flex;align-items:center;gap:6px;background:#f4f5f9;border:1px solid #e4e6f0;border-radius:8px;padding:7px 10px;font-size:12px;color:var(--navy);font-weight:600;cursor:pointer;text-decoration:none;white-space:nowrap;max-width:160px;overflow:hidden;text-overflow:ellipsis}
+.pdf-thumb:hover{background:#eef0fa}
+
+/* VIEW TABS */
+.view-tabs{display:flex;gap:6px;margin-bottom:1rem;flex-wrap:wrap}
+.view-tab{padding:6px 16px;font-size:13px;border:1.5px solid #dde0f0;border-radius:99px;background:#fff;color:#666;cursor:pointer;font-family:inherit;font-weight:500;transition:all .15s}
+.view-tab.active{background:var(--navy);color:white;border-color:var(--navy)}
+
+/* POMODORO */
+.pomo-fab{width:100%;padding:9px 12px;border:1.5px solid #dde0f0;border-radius:10px;background:#f9f9fc;font-size:13px;cursor:pointer;color:#555;font-family:inherit;transition:all .15s;font-weight:500;display:none;align-items:center;gap:8px;margin-top:8px;justify-content:space-between}
+.pomo-fab:hover{background:#eef0fa;color:var(--navy)}
+.pomo-time{font-size:13px;font-weight:700;color:var(--navy);letter-spacing:.04em;min-width:42px}
+.pomo-label{font-size:11px;color:#888;font-weight:500;flex:1;text-align:left}
+.pomo-dot{width:7px;height:7px;border-radius:50%;background:#ccc;flex-shrink:0}
+.pomo-dot.work{background:var(--navy)}
+.pomo-dot.rest{background:#1D9E75}
+.pomo-panel{position:fixed;bottom:70px;left:8px;right:8px;width:auto;z-index:350;background:#fff;border:1.5px solid #e4e6f0;border-radius:16px;padding:1.5rem;width:234px;box-shadow:0 8px 32px rgba(43,57,144,.15);display:none}
+.pomo-panel.open{display:block}
+.pomo-panel-title{font-size:14px;font-weight:700;color:var(--navy);margin-bottom:1rem}
+.pomo-big-time{font-size:42px;font-weight:700;color:var(--navy);text-align:center;letter-spacing:.04em;margin:1rem 0}
+.pomo-phase{text-align:center;font-size:12px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.06em;margin-bottom:1rem}
+.pomo-phase.work{color:var(--navy)}
+.pomo-phase.rest{color:#1D9E75}
+.pomo-btns{display:flex;gap:8px;justify-content:center;margin-bottom:1rem}
+.pomo-btn{padding:8px 18px;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;border:none;transition:all .15s}
+.pomo-btn.start{background:var(--navy);color:white}
+.pomo-btn.start:hover{background:var(--navy2)}
+.pomo-btn.stop{background:#f4f5f9;color:#555;border:1.5px solid #e4e6f0}
+.pomo-btn.stop:hover{background:#e4e6f0}
+.pomo-settings{border-top:1px solid #f0f1f8;padding-top:1rem;display:flex;flex-direction:column;gap:8px}
+.pomo-set-row{display:flex;align-items:center;justify-content:space-between;font-size:12px;color:#666}
+.pomo-set-row input{width:54px;padding:4px 8px;border:1.5px solid #e4e6f0;border-radius:7px;font-size:13px;font-weight:600;text-align:center;font-family:inherit;color:var(--navy);outline:none}
+.pomo-progress{height:4px;background:#f0f1f8;border-radius:2px;margin-bottom:1rem;overflow:hidden}
+.pomo-progress-fill{height:100%;border-radius:2px;transition:width .5s linear;background:var(--navy)}
+.pomo-progress-fill.rest{background:#1D9E75}
+
+/* NOTIF BADGE */
+.nav-item{position:relative}
+.notif-dot{position:absolute;top:8px;right:14px;width:9px;height:9px;background:var(--orange);border-radius:50%;border:2px solid #fff;display:none}
+.notif-dot.show{display:block}
+.nav-item .notif-count{position:absolute;top:6px;right:10px;background:var(--orange);color:white;font-size:10px;font-weight:700;border-radius:99px;padding:1px 6px;display:none;line-height:16px}
+.nav-item .notif-count.show{display:inline-block}
+
+/* TOAST */
+.toast{position:fixed;bottom:1.5rem;right:1.5rem;background:var(--navy);color:white;padding:12px 20px;border-radius:12px;font-size:13px;font-weight:600;box-shadow:0 4px 20px rgba(43,57,144,.25);z-index:999;animation:slideup .3s ease;pointer-events:none}
+@keyframes slideup{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+
+/* MOBILE TOP BAR */
+.mobile-topbar{display:none;position:sticky;top:0;z-index:50;background:var(--navy);border-bottom:1px solid var(--navy2);padding:10px 1rem;align-items:center;justify-content:space-between;gap:8px}
+.mobile-topbar img{height:32px;object-fit:contain;filter:brightness(0) invert(1)}
+.mobile-topbar-user{font-size:13px;font-weight:600;color:white;text-align:right;line-height:1.3}
+.mobile-topbar-role{font-size:11px;color:rgba(255,255,255,.65);font-weight:400}
+@media(max-width:700px){.mobile-topbar{display:flex}}
+
+/* BOTTOM NAV (mobile) */
+.bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;z-index:100;background:#fff;border-top:1px solid #e4e6f0;padding:4px 0 6px;box-shadow:0 -2px 12px rgba(43,57,144,.08)}
+.bottom-nav-inner{display:flex;justify-content:space-around;align-items:flex-start}
+.bn-item{display:flex;flex-direction:column;align-items:center;gap:2px;background:none;border:none;cursor:pointer;font-family:inherit;padding:4px 8px;border-radius:10px;position:relative;min-width:54px}
+.bn-icon{font-size:20px;line-height:1}
+.bn-label{font-size:9px;color:#888;font-weight:500;text-align:center}
+.bn-item.active .bn-label{color:var(--navy);font-weight:700}
+.bn-badge{position:absolute;top:0;right:4px;background:var(--orange);color:white;font-size:9px;font-weight:700;border-radius:99px;padding:1px 5px;display:none;line-height:14px}
+.bn-badge.show{display:inline-block}
+
+@media(max-width:700px){
+  .sidebar{display:none}
+  .main{margin-left:0;padding:1rem;padding-bottom:90px}
+  .form-row{grid-template-columns:1fr}
+  .stats-grid{grid-template-columns:repeat(2,1fr)}
+  .bottom-nav{display:block}
+  .overlay{align-items:flex-start;padding:8px 8px 80px}
+  .modal{max-height:calc(100vh - 90px);border-radius:14px;margin-top:8px}
+  .table-wrap{font-size:12px}
+  th,td{padding:8px 6px}
+  .page-title{font-size:17px}
+  .filter-bar{gap:6px}
+  .filter-select,.search-box{font-size:12px}
+}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen" class="login-screen">
+  <div class="login-card">
+    <div class="login-logo-wrap">
+      <img id="loginLogoImg" src="" alt="JSR Sistemas">
+    </div>
+    <div class="login-title">Gestão de Demandas JSR Sistemas</div>
+    <div class="login-frase">Só registre o que realmente tem necessidade.</div>
+    <div class="form-group">
+      <label class="form-label">Login</label>
+      <input class="form-input" id="iLogin" type="text" placeholder="seu.usuario" autocomplete="username">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Senha</label>
+      <input class="form-input" id="iPass" type="password" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="btn-primary" onclick="doLogin()">Entrar</button>
+    <div class="error-msg" id="loginErr"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="appScreen" class="app">
+  <nav class="sidebar">
+    <div class="sidebar-brand">
+      <img id="sideLogoImg" src="" alt="JSR Sistemas" style="height:34px;object-fit:contain">
+    </div>
+    <div class="sidebar-user">
+      <div class="sidebar-user-name" id="sbName">—</div>
+      <div class="sidebar-user-role" id="sbRole">—</div>
+    </div>
+    <div class="nav-section">
+      <div id="navAdmin">
+        <div class="nav-label">Painel</div>
+        <button class="nav-item active" data-page="overview" onclick="showPage('overview',this)"><span class="nav-icon">📊</span>Visão geral</button>
+        <button class="nav-item" data-page="tasks" onclick="showPage('tasks',this)"><span class="nav-icon">📋</span>Demandas</button>
+        <button class="nav-item" data-page="comunicados" onclick="showPage('comunicados',this)"><span class="nav-icon">📢</span>Comunicados<span class="notif-count" id="notifAdmin"></span></button>
+        <button class="nav-item" data-page="atualizacoes" onclick="showPage('atualizacoes',this)"><span class="nav-icon">🚀</span>Atualizações</button>
+        <button class="nav-item" data-page="users" onclick="showPage('users',this)"><span class="nav-icon">👥</span>Usuários</button>
+        <button class="nav-item" data-page="clients" onclick="showPage('clients',this)"><span class="nav-icon">🏢</span>Clientes e setores</button>
+      </div>
+      <div id="navUser" style="display:none">
+        <div class="nav-label">Menu</div>
+        <button class="nav-item active" data-page="tasks" onclick="showPage('tasks',this)"><span class="nav-icon">📋</span>Demandas</button>
+        <button class="nav-item" data-page="newTask" onclick="showPage('newTask',this)"><span class="nav-icon">➕</span>Nova demanda</button>
+        <button class="nav-item" data-page="comunicados" onclick="showPage('comunicados',this)"><span class="nav-icon">📢</span>Comunicados<span class="notif-count" id="notifUser"></span></button>
+        <button class="nav-item" data-page="atualizacoes" onclick="showPage('atualizacoes',this)"><span class="nav-icon">🚀</span>Atualizações</button>
+      </div>
+    </div>
+    <div class="sidebar-footer">
+      <button class="btn-logout" onclick="doLogout()">Sair da conta</button>
+      <button class="pomo-fab" onclick="togglePomoPanel()" id="pomoFab">
+        <div class="pomo-dot work" id="pomoDot"></div>
+        <div class="pomo-label" id="pomoFabLabel">🍅 Pomodoro</div>
+        <div class="pomo-time" id="pomoFabTime">25:00</div>
+      </button>
+    </div>
+  </nav>
+
+  <div class="main">
+    <!-- Mobile top bar -->
+    <div class="mobile-topbar" id="mobileTopbar">
+      <img id="mobileLogoImg" src="" alt="JSR Sistemas" style="height:32px">
+      <div style="text-align:right">
+        <div class="mobile-topbar-user" id="mobileUserName">—</div>
+        <div class="mobile-topbar-role" id="mobileUserRole">—</div>
+      </div>
+    </div>
+
+    <!-- OVERVIEW -->
+    <div class="page active" id="pg-overview">
+      <div class="page-header"><div class="page-title">Visão geral</div></div>
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-label">Total de demandas</div><div class="stat-value" id="ov-tot">0</div></div>
+        <div class="stat-card"><div class="stat-label">Pendentes</div><div class="stat-value blue" id="ov-pend">0</div></div>
+        <div class="stat-card"><div class="stat-label">Em andamento</div><div class="stat-value orange" id="ov-prog">0</div></div>
+        <div class="stat-card"><div class="stat-label">Concluídas</div><div class="stat-value green" id="ov-done">0</div></div>
+        <div class="stat-card"><div class="stat-label">Colaboradores</div><div class="stat-value" id="ov-usr">0</div></div>
+        <div class="stat-card"><div class="stat-label">Clientes</div><div class="stat-value" id="ov-cli">0</div></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Últimas demandas</span></div>
+        <div class="table-wrap">
+          <table><thead><tr><th>Tarefa</th><th>Responsável</th><th>Cliente</th><th>Prazo</th><th>Status</th><th>Prioridade</th></tr></thead>
+          <tbody id="ovTable"><tr class="empty-row"><td colspan="6">Carregando...</td></tr></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TASKS -->
+    <div class="page" id="pg-tasks">
+      <div class="page-header">
+        <div class="page-title">Demandas</div>
+        <button class="btn-add" onclick="openTaskModal(null)">+ Nova demanda</button>
+      </div>
+      <div class="view-tabs">
+        <button class="view-tab" onclick="setViewTab('compartilhadas',this)">🌐 Compartilhadas</button>
+        <button class="view-tab" onclick="setViewTab('privadas',this)">🔒 Minhas privadas</button>
+        <button class="view-tab active" onclick="setViewTab('todas',this)">📋 Todas</button>
+        <button class="view-tab" id="tabRestrito" style="display:none" onclick="setViewTab('restritas',this)">🔴 Restritas</button>
+      </div>
+      <div class="filter-bar">
+        <input class="search-box" id="fSearch" type="text" placeholder="🔍  Buscar tarefa..." oninput="renderTasks()">
+        <select class="filter-select" id="fStatus" onchange="renderTasks()">
+          <option value="">Todos os status</option>
+          <option value="pendente">Pendente</option>
+          <option value="em_andamento">Em andamento</option>
+          <option value="concluido">Concluído</option>
+          <option value="cancelado">Cancelado</option>
+        </select>
+        <select class="filter-select" id="fPrio" onchange="renderTasks()">
+          <option value="">Todas as prioridades</option>
+          <option value="alta">Alta</option>
+          <option value="media">Média</option>
+          <option value="baixa">Baixa</option>
+        </select>
+        <select class="filter-select" id="fAssignee" onchange="renderTasks()"><option value="">Todos os responsáveis</option></select>
+        <select class="filter-select" id="fClient" onchange="renderTasks()"><option value="">Todos os clientes</option></select>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Tarefa</th><th>Data</th><th>Prazo</th><th>Cliente</th><th>Responsável</th><th>Status</th><th>Prior.</th><th>Visib.</th><th>Anexos</th><th></th></tr></thead>
+            <tbody id="tasksTable"><tr class="empty-row"><td colspan="10">Conectando ao banco de dados...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- NEW TASK (user) -->
+    <div class="page" id="pg-newTask">
+      <div class="page-header"><div class="page-title">Nova demanda</div></div>
+      <div class="form-card" id="quickForm"></div>
+    </div>
+
+    <!-- COMUNICADOS -->
+    <div class="page" id="pg-comunicados">
+      <div class="page-header">
+        <div class="page-title">Comunicados</div>
+        <button class="btn-orange" id="btnNovoComunic" style="display:none" onclick="openComunicModal()">+ Novo comunicado</button>
+      </div>
+      <div id="comunicList"></div>
+    </div>
+
+    <!-- USERS -->
+    <div class="page" id="pg-users">
+      <div class="page-header"><div class="page-title">Usuários</div><button class="btn-add" onclick="openUserModal(null)">+ Novo usuário</button></div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Nome</th><th>Login</th><th>Tipo</th><th>Horário de acesso</th><th>Situação</th><th></th></tr></thead>
+            <tbody id="usersTable"><tr class="empty-row"><td colspan="6">Carregando...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- CLIENTS -->
+    <div class="page" id="pg-clients">
+      <div class="page-header"><div class="page-title">Clientes e setores</div><button class="btn-add" onclick="openClientModal(null)">+ Novo cliente</button></div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Cliente</th><th>Setor</th><th></th></tr></thead>
+            <tbody id="clientsTable"><tr class="empty-row"><td colspan="3">Carregando...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ATUALIZAÇÕES -->
+    <div class="page" id="pg-atualizacoes">
+      <div class="page-header" style="flex-wrap:wrap;gap:10px">
+        <div>
+          <div class="page-title">Atualizações</div>
+          <div style="font-size:12px;color:#888;margin-top:2px">Comunicados técnicos da equipe de desenvolvimento</div>
+        </div>
+        <button class="btn-orange" id="btnNovaAtualizacao" style="display:none" onclick="openAtualizacaoModal()">+ Nova atualização</button>
+      </div>
+      <!-- Month filter -->
+      <div style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap;align-items:center">
+        <select class="filter-select" id="atualizFilter" onchange="renderAtualizacoes()" style="min-width:160px">
+          <option value="">Todos os meses</option>
+        </select>
+        <span style="font-size:12px;color:#aaa" id="atualizCount"></span>
+      </div>
+      <div id="atualizacaoList"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- BOTTOM NAV (mobile) -->
+<nav class="bottom-nav" id="bottomNav" style="display:none">
+  <div class="bottom-nav-inner" id="bottomNavInner"></div>
+</nav>
+
+<div class="pomo-panel" id="pomoPanel">
+  <div class="pomo-panel-title">🍅 Pomodoro</div>
+  <div class="pomo-progress"><div class="pomo-progress-fill" id="pomoProgressFill" style="width:100%"></div></div>
+  <div class="pomo-phase work" id="pomoPhaseLabel">Foco — trabalho</div>
+  <div class="pomo-big-time" id="pomoBigTime">25:00</div>
+  <div class="pomo-btns">
+    <button class="pomo-btn start" id="pomoStartBtn" onclick="pomoStartStop()">▶ Iniciar</button>
+    <button class="pomo-btn stop" onclick="pomoReset()">↺ Resetar</button>
+  </div>
+  <div class="pomo-settings">
+    <div class="pomo-set-row"><span>⏱ Foco (min)</span><input type="number" id="pomoWorkMin" value="25" min="1" max="60" onchange="pomoApplySettings()"></div>
+    <div class="pomo-set-row"><span>☕ Descanso (min)</span><input type="number" id="pomoRestMin" value="5" min="1" max="30" onchange="pomoApplySettings()"></div>
+  </div>
+</div>
+
+<!-- MODALS -->
+<div id="overlay" class="overlay" style="display:none">
+
+  <!-- USER MODAL -->
+  <div class="modal" id="mUser" style="display:none">
+    <div class="modal-head"><span class="modal-title" id="mUserTitle">Novo usuário</span><button class="modal-close" onclick="closeModals()">×</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="uId">
+      <div class="form-group"><label class="form-label">Nome completo</label><input class="form-input" id="uName" type="text" placeholder="Ex: Maria Silva"></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Login</label><input class="form-input" id="uLogin" type="text" placeholder="maria.silva"></div>
+        <div class="form-group"><label class="form-label">Senha</label><input class="form-input" id="uPass" type="text" placeholder="senha123"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Tipo de acesso</label>
+        <select class="form-input" id="uRole"><option value="user">Colaborador</option><option value="admin">Administrador</option></select>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Acesso a partir de</label><input class="form-input" id="uStart" type="time" value="08:00"></div>
+        <div class="form-group"><label class="form-label">Acesso até</label><input class="form-input" id="uEnd" type="time" value="18:00"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Situação</label>
+        <select class="form-input" id="uActive"><option value="true">Ativo</option><option value="false">Inativo</option></select>
+      </div>
+    </div>
+    <div class="modal-foot"><button class="btn-sec" onclick="closeModals()">Cancelar</button><button class="btn-save" onclick="saveUser()">Salvar usuário</button></div>
+  </div>
+
+  <!-- CLIENT MODAL -->
+  <div class="modal" id="mClient" style="display:none">
+    <div class="modal-head"><span class="modal-title" id="mClientTitle">Novo cliente</span><button class="modal-close" onclick="closeModals()">×</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="cId">
+      <div class="form-group"><label class="form-label">Nome do cliente</label><input class="form-input" id="cName" type="text" placeholder="Ex: Empresa XYZ"></div>
+      <div class="form-group"><label class="form-label">Setor</label><input class="form-input" id="cSector" type="text" placeholder="Ex: Financeiro, TI, RH..."></div>
+    </div>
+    <div class="modal-foot"><button class="btn-sec" onclick="closeModals()">Cancelar</button><button class="btn-save" onclick="saveClient()">Salvar cliente</button></div>
+  </div>
+
+  <!-- TASK MODAL -->
+  <div class="modal" id="mTask" style="display:none" style="max-width:560px">
+    <div class="modal-head"><span class="modal-title" id="mTaskTitle">Nova demanda</span><button class="modal-close" onclick="closeModals()">×</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="tId">
+      <div class="form-group"><label class="form-label">Tarefa / Atividade</label><input class="form-input" id="tTitle" type="text" placeholder="Descreva a tarefa..."></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Data da tarefa</label><input class="form-input" id="tDate" type="date"></div>
+        <div class="form-group"><label class="form-label">Prazo de entrega</label><input class="form-input" id="tDeadline" type="date"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Cliente</label><select class="form-input" id="tClient"></select></div>
+      <div class="form-group"><label class="form-label">Para quem é a atividade</label><select class="form-input" id="tAssignee"></select></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Status</label>
+          <select class="form-input" id="tStatus"><option value="pendente">Pendente</option><option value="em_andamento">Em andamento</option><option value="concluido">Concluído</option><option value="cancelado">Cancelado</option></select>
+        </div>
+        <div class="form-group"><label class="form-label">Prioridade</label>
+          <select class="form-input" id="tPrio"><option value="alta">Alta</option><option value="media">Média</option><option value="baixa">Baixa</option></select>
+        </div>
+      </div>
+      <div class="form-group"><label class="form-label">Visibilidade</label>
+        <select class="form-input" id="tVisibility">
+          <option value="shared">🌐 Compartilhada — todos podem ver</option>
+          <option value="private">🔒 Privada — só eu vejo</option>
+          <option value="restricted">🔴 Restrita — somente administradores</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">Observação</label><textarea class="form-input" id="tObs" placeholder="Informações adicionais..."></textarea></div>
+      <div class="form-group">
+        <label class="form-label">Anexar imagens / prints</label>
+        <label class="img-upload-area" for="tImgInput" style="cursor:pointer;display:block">
+          <div style="font-size:24px">📎</div>
+          <p>Clique para selecionar imagens ou PDFs</p>
+        </label>
+        <input type="file" id="tImgInput" accept="image/*,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" multiple style="display:none" onchange="handleImgSelect(event)">
+        </div>
+        <div class="img-preview-wrap" id="tImgPreview"></div>
+      </div>
+    </div>
+    <div class="modal-foot"><button class="btn-sec" onclick="closeModals()">Cancelar</button><button class="btn-save" onclick="saveTask()">Salvar demanda</button></div>
+  </div>
+
+  <!-- COMUNICADO MODAL -->
+  <div class="modal" id="mComunic" style="display:none">
+    <div class="modal-head"><span class="modal-title">Novo comunicado</span><button class="modal-close" onclick="closeModals()">×</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label class="form-label">Mensagem</label><textarea class="form-input" id="cMsg" placeholder="Digite o comunicado para toda a equipe..." style="min-height:120px"></textarea></div>
+    </div>
+    <div class="modal-foot"><button class="btn-sec" onclick="closeModals()">Cancelar</button><button class="btn-save" onclick="saveComunic()">Publicar comunicado</button></div>
+  </div>
+
+  <!-- IMAGE VIEW MODAL -->
+  <div class="modal" id="mImgView" style="display:none;max-width:700px">
+    <div class="modal-head"><span class="modal-title">Anexos da tarefa</span><button class="modal-close" onclick="closeModals()">×</button></div>
+    <div class="modal-body" id="mImgViewBody" style="flex-direction:row;flex-wrap:wrap;gap:12px"></div>
+
+
+  <!-- ATUALIZAÇÃO MODAL -->
+  <div class="modal" id="mAtualizacao" style="display:none">
+    <div class="modal-head" style="background:var(--navy);border-radius:18px 18px 0 0">
+      <span class="modal-title" style="color:white">🚀 Nova atualização</span>
+      <button class="modal-close" onclick="closeModals()" style="color:white">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Versão</label>
+          <input class="form-input" id="aVersion" type="text" placeholder="Ex: v1.2.0" style="font-weight:700;font-size:16px">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Data de lançamento</label>
+          <input class="form-input" id="aDate" type="date">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Nome da atualização</label>
+        <input class="form-input" id="aTitle" type="text" placeholder="Ex: Melhorias no módulo de tarefas">
+      </div>
+      <div class="form-group">
+        <label class="form-label">O que mudou nessa versão</label>
+        <textarea class="form-input" id="aDesc" placeholder="Descreva o que foi atualizado, corrigido ou adicionado..." style="min-height:120px"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">📹 Vídeo demonstrativo (gravado no celular ou PC)</label>
+        <label class="img-upload-area" for="aVideoInput" style="cursor:pointer;display:block">
+          <div style="font-size:28px">🎥</div>
+          <p style="margin-top:6px">Clique para selecionar um vídeo</p>
+          <p style="font-size:11px;color:#aaa;margin-top:4px">MP4, MOV, AVI — máx 15MB</p>
+        </label>
+        <input type="file" id="aVideoInput" accept="video/*" style="display:none" onchange="handleAtualizVideo(event)">
+        <div id="aVideoPreview" style="margin-top:8px"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">📎 Anexos adicionais (PDF, imagem, Excel)</label>
+        <label class="img-upload-area" for="aFileInput" style="cursor:pointer;display:block">
+          <div style="font-size:24px">📎</div>
+          <p>Clique para anexar arquivos</p>
+          <p style="font-size:11px;color:#aaa;margin-top:4px">PDF, Excel, Imagem — máx 3MB cada</p>
+        </label>
+        <input type="file" id="aFileInput" accept="image/*,application/pdf,.xlsx,.xls" multiple style="display:none" onchange="handleAtualizacaoFile(event)">
+        <div class="img-preview-wrap" id="aFilePreview"></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-sec" onclick="closeModals()">Cancelar</button>
+      <button class="btn-save" style="background:var(--navy)" onclick="saveAtualizacao()">🚀 Publicar atualização</button>
+    </div>
+  </div>
+
+  </div>
+
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script>
+const LOGO_B64 = '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';
+document.getElementById('loginLogoImg').src = 'data:image/png;base64,' + LOGO_B64;
+document.getElementById('sideLogoImg').src  = 'data:image/png;base64,' + LOGO_B64;
+
+const firebaseConfig = {
+  apiKey:            "AIzaSyCk7hLaYhhUfiBAHNPrbeJfglZ7KUfvdLU",
+  authDomain:        "demandas-empresa.firebaseapp.com",
+  projectId:         "demandas-empresa",
+  storageBucket:     "demandas-empresa.firebasestorage.app",
+  messagingSenderId: "707235604545",
+  appId:             "1:707235604545:web:9778fd0a9f10223f3c3ec0"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+let me = null;
+let users=[], clients=[], tasks=[], comunicados=[], atualizacoes=[];
+let pendingAtualizFiles=[], pendingAtualizVideo=null;
+let pendingImgs = [];
+let pendingImgData = [];
+let currentViewTab = 'todas';
+
+function setViewTab(tab, btn){
+  currentViewTab = tab;
+  document.querySelectorAll('.view-tab').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  renderTasks();
+}
+
+window.onload = () => {
+  // Restore session if exists
+  const s = localStorage.getItem('gd_session');
+  if (s) {
+    try {
+      me = JSON.parse(s);
+      startApp(); // this calls startListeners() which fetches data
+    } catch(e) {
+      localStorage.removeItem('gd_session');
+      me = null;
+    }
+  }
+  // Seed admin in background, non-blocking
+  setTimeout(seedAdmin, 2000);
+};
+
+async function seedAdmin() {
+  try {
+    const snap = await db.collection('users').where('role','==','admin').limit(1).get();
+    if (snap.empty) {
+      await db.collection('users').add({
+        name:'Administrador',login:'admin',password:'admin123',
+        role:'admin',accessStart:'00:00',accessEnd:'23:59',active:true
+      });
+    }
+  } catch(e){ console.log('seedAdmin skipped:', e.message); }
+}
+
+let listenersStarted = false;
+function startListeners(){
+  if(listenersStarted) return; // prevent duplicate listeners on re-login
+  listenersStarted = true;
+  try{
+    db.collection('users').onSnapshot(s=>{users=s.docs.map(d=>({id:d.id,...d.data()}));renderUsers();renderOverview();populateFilters();});
+    db.collection('clients').onSnapshot(s=>{clients=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>a.name?.localeCompare(b.name||'')||0);renderClients();renderOverview();populateFilters();});
+    db.collection('tasks').onSnapshot(s=>{tasks=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));renderTasks();renderOverview();});
+    db.collection('comunicados').onSnapshot(s=>{comunicados=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));renderComunicados();updateNotifBadge();});
+    db.collection('atualizacoes').onSnapshot(s=>{atualizacoes=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));renderAtualizacoes();});
+  }catch(e){console.error('Firebase listener error:',e); document.getElementById('tasksTable').innerHTML='<tr class="empty-row"><td colspan="10">Erro Firebase: '+e.message+'</td></tr>';}
+}
+
+async function doLogin() {
+  const login=document.getElementById('iLogin').value.trim();
+  const pass=document.getElementById('iPass').value.trim();
+  const err=document.getElementById('loginErr');
+  err.textContent='';
+  if(!login||!pass){err.textContent='Preencha o login e a senha.';return;}
+  try {
+    const snap=await db.collection('users').where('login','==',login).where('password','==',pass).limit(1).get();
+    if(snap.empty){err.textContent='Login ou senha incorretos.';return;}
+    const u={id:snap.docs[0].id,...snap.docs[0].data()};
+    if(!u.active){err.textContent='Usuário inativo. Fale com a administradora.';return;}
+    if(u.role!=='admin'){
+      const now=new Date(), cur=now.getHours()*60+now.getMinutes();
+      const [sh,sm]=(u.accessStart||'00:00').split(':').map(Number);
+      const [eh,em]=(u.accessEnd||'23:59').split(':').map(Number);
+      if(cur<sh*60+sm||cur>eh*60+em){err.textContent=`Acesso permitido apenas das ${u.accessStart} às ${u.accessEnd}.`;return;}
+    }
+    me=u;
+    localStorage.setItem('gd_session',JSON.stringify(u));
+    listenersStarted = false; // reset so startApp can init listeners fresh
+    startApp();
+  } catch(e){
+    console.error('Login error:', e);
+    err.textContent='Erro de conexão: '+e.message;
+  }
+  document.querySelector('.btn-primary').textContent='Entrar';
+}
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.getElementById('loginScreen').style.display!=='none')doLogin();});
+
+function doLogout(){
+  me=null; localStorage.removeItem('gd_session');
+  document.getElementById('appScreen').style.display='none';
+  document.getElementById('loginScreen').style.display='flex';
+  document.getElementById('iLogin').value='';
+  document.getElementById('iPass').value='';
+}
+
+function startApp(){
+  startListeners(); // called here so me is already set when snapshots fire
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('appScreen').style.display='block';
+  document.getElementById('sbName').textContent=me.name;
+  document.getElementById('sbRole').textContent=me.role==='admin'?'Administrador':'Colaborador';
+  const roleLabel=me.role==='admin'?'Administrador':'Colaborador';
+  document.getElementById('mobileUserName').textContent=me.name;
+  document.getElementById('mobileUserRole').textContent=roleLabel;
+  document.getElementById('mobileLogoImg').src=document.getElementById('loginLogoImg').src;
+  showPomoFab();
+  buildBottomNav();
+  if(me.role==='admin'){
+    document.getElementById('navAdmin').style.display='block';
+    document.getElementById('navUser').style.display='none';
+    document.getElementById('btnNovoComunic').style.display='inline-block';
+    document.getElementById('btnNovaAtualizacao').style.display='inline-block';
+    const tabR = document.getElementById('tabRestrito');
+    if(tabR) tabR.style.display='inline-block';
+    showPage('overview',document.querySelector('[data-page="overview"]'));
+  } else {
+    document.getElementById('navAdmin').style.display='none';
+    document.getElementById('navUser').style.display='block';
+    document.getElementById('btnNovoComunic').style.display='none';
+    showPage('tasks',document.querySelector('[data-page="tasks"]'));
+  }
+  // startListeners above will trigger renders automatically via onSnapshot
+}
+
+function showPage(name,btn){
+  closeModals();
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  const pg=document.getElementById('pg-'+name);
+  if(pg)pg.classList.add('active');
+  if(btn)btn.classList.add('active');
+  setBnActive(name);
+  if(name==='newTask')renderQuickForm();
+  if(name==='comunicados')markComunicSeen();
+}
+
+function renderOverview(){
+  if(!me){ return; }
+  const set=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;};
+  set('ov-tot',tasks.length); set('ov-pend',tasks.filter(t=>t.status==='pendente').length);
+  set('ov-prog',tasks.filter(t=>t.status==='em_andamento').length); set('ov-done',tasks.filter(t=>t.status==='concluido').length);
+  set('ov-usr',users.filter(u=>u.role!=='admin').length); set('ov-cli',clients.length);
+  const tbody=document.getElementById('ovTable'); if(!tbody)return;
+  const recent=tasks.slice(0,15);
+  if(!recent.length){tbody.innerHTML='<tr class="empty-row"><td colspan="6">Nenhuma demanda cadastrada ainda.</td></tr>';return;}
+  tbody.innerHTML=recent.map(t=>{
+    const a=users.find(u=>u.id===t.assigneeId), c=clients.find(c=>c.id===t.clientId);
+    return `<tr><td>${esc(t.title)}</td><td>${a?esc(a.name):'—'}</td><td>${c?esc(c.name):'—'}</td><td>${fmtDate(t.deadline)}</td><td>${sbadge(t.status)}</td><td>${pbadge(t.priority)}</td></tr>`;
+  }).join('');
+}
+
+function populateFilters(){
+  const fa=document.getElementById('fAssignee'),fc=document.getElementById('fClient');
+  if(fa){const v=fa.value;fa.innerHTML='<option value="">Todos os responsáveis</option>'+users.map(u=>`<option value="${u.id}">${esc(u.name)}</option>`).join('');fa.value=v;}
+  if(fc){const v=fc.value;fc.innerHTML='<option value="">Todos os clientes</option>'+clients.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');fc.value=v;}
+}
+
+function renderTasks(){
+  const search=(document.getElementById('fSearch')?.value||'').toLowerCase();
+  const status=document.getElementById('fStatus')?.value||'';
+  const prio=document.getElementById('fPrio')?.value||'';
+  const assignee=document.getElementById('fAssignee')?.value||'';
+  const client=document.getElementById('fClient')?.value||'';
+
+  if(!me){ console.warn("renderTasks called before login"); return; }
+  // Visibility filter
+  let list = tasks.filter(t => {
+    const vis = t.visibility; // undefined for old tasks
+    const isMine = t.createdBy === me.id || !t.createdBy;
+    // private: only creator
+    if(vis === 'private' && !isMine) return false;
+    // restricted: only admins
+    if(vis === 'restricted' && me.role !== 'admin') return false;
+    // Tab filters
+    if(currentViewTab === 'compartilhadas') return !vis || vis === 'shared';
+    if(currentViewTab === 'restritas') return vis === 'restricted';
+    if(currentViewTab === 'privadas') return vis === 'private' && isMine;
+    return true; // 'todas' or anything else: show
+  });
+
+  if(search)list=list.filter(t=>t.title.toLowerCase().includes(search)||(t.observation||'').toLowerCase().includes(search));
+  if(status)list=list.filter(t=>t.status===status);
+  if(prio)list=list.filter(t=>t.priority===prio);
+  if(assignee)list=list.filter(t=>t.assigneeId===assignee);
+  if(client)list=list.filter(t=>t.clientId===client);
+
+  const tbody=document.getElementById('tasksTable'); if(!tbody)return;
+  console.log('renderTasks: total='+tasks.length+' filtered='+list.length+' tab='+currentViewTab+' me='+me?.id);
+  if(!list.length){
+    tbody.innerHTML='<tr class="empty-row"><td colspan="10">Nenhuma demanda encontrada. ('+tasks.length+' no banco)</td></tr>';return;
+  }
+  tbody.innerHTML=list.map(t=>{
+    const a=users.find(u=>u.id===t.assigneeId), c=clients.find(c=>c.id===t.clientId);
+    const vis2 = t.visibility||'shared';
+    const isMine = t.createdBy===me.id || !t.createdBy;
+    const canEdit = isMine || (me.role==='admin' && vis2!=='private');
+    const canDelete = isMine || (me.role==='admin' && vis2!=='private');
+    const hasFiles = t.images&&t.images.length>0;
+    const visibBadge = vis2==='private' ? '<span class="b-private">🔒 Privada</span>' :
+                       vis2==='restricted' ? '<span class="b-restrito">🔴 Restrita</span>' :
+                       '<span class="b-shared">🌐 Compartilhada</span>';
+    return `<tr>
+      <td style="max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(t.title)}">${isPrivate?'<span class="lock-icon">🔒</span>':''}${esc(t.title)}</td>
+      <td style="white-space:nowrap">${fmtDate(t.date)}</td>
+      <td style="white-space:nowrap">${fmtDate(t.deadline)}</td>
+      <td>${c?esc(c.name):'—'}</td>
+      <td>${a?esc(a.name):'—'}</td>
+      <td>${sbadge(t.status)}</td>
+      <td>${pbadge(t.priority)}</td>
+      <td>${visibBadge}</td>
+      <td>${hasFiles?`<button class="action-btn" onclick="viewImgs('${t.id}')">📎 ${t.images.length}</button>`:'—'}</td>
+      <td style="white-space:nowrap">
+        ${canEdit?`<button class="action-btn" onclick="openTaskModal('${t.id}')">Editar</button>`:''}
+        ${canDelete?`<button class="action-btn danger" onclick="delTask('${t.id}')">Excluir</button>`:''}
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// IMAGE HANDLING
+function detectMime(name){
+  const ext=(name||'').split('.').pop().toLowerCase();
+  if(ext==='pdf') return 'application/pdf';
+  if(ext==='xlsx'||ext==='xls') return 'application/vnd.ms-excel';
+  if(ext==='png') return 'image/png';
+  if(ext==='jpg'||ext==='jpeg') return 'image/jpeg';
+  return 'application/octet-stream';
+}
+function isExcel(item){
+  const t=item.type||''; const n=(item.name||'').toLowerCase();
+  return t.includes('spreadsheet')||t.includes('excel')||t.includes('xls')||n.endsWith('.xlsx')||n.endsWith('.xls');
+}
+function isPdf(item){
+  const t=item.type||''; const n=(item.name||'').toLowerCase();
+  return t==='application/pdf'||n.endsWith('.pdf')||(item.data&&item.data.startsWith('data:application/pdf'));
+}
+function isImage(item){ return (item.type||'').startsWith('image/'); }
+function fileIcon(item){
+  if(isPdf(item)) return '📄';
+  if(isExcel(item)) return '📊';
+  return '🖼';
+}
+function handleImgSelect(e){
+  const files=Array.from(e.target.files);
+  const MAX_MB=3;
+  files.forEach(file=>{
+    if(file.size>MAX_MB*1024*1024){toast('⚠️ "'+file.name+'" excede '+MAX_MB+'MB e foi ignorado.');return;}
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      const mime=file.type||detectMime(file.name);
+      pendingImgData.push({data:ev.target.result,name:file.name,type:mime});
+      renderImgPreview();
+    };
+    reader.readAsDataURL(file);
+  });
+  e.target.value='';
+}
+function renderImgPreview(){
+  const wrap=document.getElementById('tImgPreview'); if(!wrap)return;
+  wrap.innerHTML=pendingImgData.map((item,i)=>{
+    if(isImage(item)){
+      return `<div class="img-thumb"><img src="${item.data||item}" alt="img ${i+1}"><button onclick="removeImg(${i})">×</button></div>`;
+    }
+    return `<div class="img-thumb" style="width:auto">
+      <div style="display:flex;align-items:center;gap:6px;background:#f4f5f9;border:1px solid #e4e6f0;border-radius:8px;padding:7px 10px;font-size:12px;color:var(--navy);font-weight:600;min-width:80px;max-width:150px;overflow:hidden;position:relative">
+        ${fileIcon(item)} <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(item.name||'arquivo')}</span>
+      </div>
+      <button onclick="removeImg(${i})" title="Remover" style="position:absolute;top:-5px;right:-5px;background:#A32D2D;color:white;border:none;border-radius:50%;width:18px;height:18px;font-size:11px;cursor:pointer;line-height:18px;text-align:center;padding:0">×</button>
+    </div>`;
+  }).join('');
+}
+function removeImg(i){ pendingImgData.splice(i,1); renderImgPreview(); }
+
+function viewImgs(taskId){
+  const t=tasks.find(t=>t.id===taskId); if(!t||!t.images)return;
+  const body=document.getElementById('mImgViewBody');
+  body.innerHTML=t.images.map(item=>{
+    const src=item.data||item;
+    const isPdfItem=isPdf(item)||src.startsWith('data:application/pdf');
+    const isExcelItem=isExcel(item)||src.includes('spreadsheet')||src.includes('excel');
+    const name=item.name||'arquivo';
+    if(isExcelItem){
+      return `<div style="width:100%;display:flex;align-items:center;gap:12px;padding:1rem;background:#f4f5f9;border-radius:10px;border:1px solid #e4e6f0">
+        <span style="font-size:32px">📊</span>
+        <div><div style="font-size:14px;font-weight:600;color:var(--navy)">${esc(name)}</div>
+        <a href="${src}" download="${esc(name)}" style="font-size:12px;color:var(--orange);font-weight:600;text-decoration:none">⬇ Baixar Excel</a></div>
+      </div>`;
+    }
+    if(isPdfItem){
+      return `<div style="width:100%">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <span style="font-size:20px">📄</span>
+          <span style="font-size:13px;font-weight:600;color:var(--navy)">${esc(name)}</span>
+        </div>
+        <embed src="${src}" type="application/pdf" width="100%" height="500px" style="border-radius:10px;border:1px solid #e4e6f0">
+        <div style="margin-top:8px"><a href="${src}" download="${esc(name)}" style="font-size:12px;color:var(--navy);font-weight:600">⬇ Baixar PDF</a></div>
+      </div>`;
+    }
+    return `<img src="${src}" style="max-width:100%;max-height:400px;border-radius:10px;border:1px solid #e4e6f0">`;
+  }).join('');
+  showModal('mImgView');
+}
+
+// TASK MODAL
+function openTaskModal(id){
+  fillTaskSelects(); pendingImgData=[];
+  const t=id?tasks.find(t=>t.id===id):null;
+  document.getElementById('mTaskTitle').textContent=t?'Editar demanda':'Nova demanda';
+  document.getElementById('tId').value=id||'';
+  document.getElementById('tTitle').value=t?.title||'';
+  document.getElementById('tDate').value=t?.date||today();
+  document.getElementById('tDeadline').value=t?.deadline||'';
+  document.getElementById('tClient').value=t?.clientId||'';
+  document.getElementById('tAssignee').value=t?.assigneeId||me.id;
+  document.getElementById('tStatus').value=t?.status||'pendente';
+  document.getElementById('tPrio').value=t?.priority||'media';
+  document.getElementById('tVisibility').value=t?.visibility||'shared';
+  // hide restricted option for non-admins
+  const resOpt = document.querySelector('#tVisibility option[value="restricted"]');
+  if(resOpt) resOpt.style.display = me.role==='admin' ? '' : 'none';
+  document.getElementById('tObs').value=t?.observation||'';
+  if(t?.images) pendingImgData=t.images.map(item=>typeof item==='string'?{data:item,name:'arquivo',type:item.startsWith('data:application/pdf')?'application/pdf':'image/jpeg'}:item);
+  renderImgPreview();
+  showModal('mTask');
+}
+function fillTaskSelects(){
+  document.getElementById('tClient').innerHTML='<option value="">Selecione o cliente...</option>'+clients.map(c=>`<option value="${c.id}">${esc(c.name)} — ${esc(c.sector)}</option>`).join('');
+  document.getElementById('tAssignee').innerHTML='<option value="">Selecione o responsável...</option>'+users.map(u=>`<option value="${u.id}">${esc(u.name)}</option>`).join('');
+}
+async function saveTask(){
+  const id=document.getElementById('tId').value;
+  const title=document.getElementById('tTitle').value.trim();
+  if(!title){alert('Informe o nome da tarefa.');return;}
+  const data={title,date:document.getElementById('tDate').value,deadline:document.getElementById('tDeadline').value,
+    clientId:document.getElementById('tClient').value,assigneeId:document.getElementById('tAssignee').value,
+    status:document.getElementById('tStatus').value,priority:document.getElementById('tPrio').value,
+    visibility:document.getElementById('tVisibility').value,
+    observation:document.getElementById('tObs').value,images:pendingImgData,
+    updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
+  try {
+    if(id){await db.collection('tasks').doc(id).update(data);}
+    else{data.createdBy=me.id;data.createdAt=firebase.firestore.FieldValue.serverTimestamp();await db.collection('tasks').add(data);}
+    pendingImgData=[]; closeModals(); toast('Demanda salva!');
+  } catch(e){alert('Erro: '+e.message);}
+}
+async function delTask(id){
+  if(!confirm('Excluir esta demanda?'))return;
+  await db.collection('tasks').doc(id).delete(); toast('Demanda excluída.');
+}
+
+// QUICK FORM
+function renderQuickForm(){
+  const el=document.getElementById('quickForm'); if(!el)return;
+  const cOpts='<option value="">Selecione o cliente...</option>'+clients.map(c=>`<option value="${c.id}">${esc(c.name)} — ${esc(c.sector)}</option>`).join('');
+  const aOpts='<option value="">Selecione...</option>'+users.map(u=>`<option value="${u.id}"${u.id===me.id?' selected':''}>${esc(u.name)}</option>`).join('');
+  el.innerHTML=`
+    <div class="form-group"><label class="form-label">Tarefa / Atividade</label><input class="form-input" id="qt-title" type="text" placeholder="Descreva a tarefa..."></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Data da tarefa</label><input class="form-input" id="qt-date" type="date" value="${today()}"></div>
+      <div class="form-group"><label class="form-label">Prazo de entrega</label><input class="form-input" id="qt-deadline" type="date"></div>
+    </div>
+    <div class="form-group"><label class="form-label">Cliente</label><select class="form-input" id="qt-client">${cOpts}</select></div>
+    <div class="form-group"><label class="form-label">Para quem é a atividade</label><select class="form-input" id="qt-assignee">${aOpts}</select></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Status</label><select class="form-input" id="qt-status"><option value="pendente">Pendente</option><option value="em_andamento">Em andamento</option><option value="concluido">Concluído</option><option value="cancelado">Cancelado</option></select></div>
+      <div class="form-group"><label class="form-label">Prioridade</label><select class="form-input" id="qt-prio"><option value="alta">Alta</option><option value="media" selected>Média</option><option value="baixa">Baixa</option></select></div>
+    </div>
+    <div class="form-group"><label class="form-label">Observação</label><textarea class="form-input" id="qt-obs" placeholder="Informações adicionais..."></textarea></div>
+    <div class="form-group">
+      <label class="form-label">Anexar imagens / prints</label>
+      <div class="img-upload-area" onclick="document.getElementById('qt-img').click()">
+        <div style="font-size:24px">📎</div><p>Clique para selecionar imagens</p>
+        <input type="file" id="qt-img" accept="image/*,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" multiple style="display:none" onchange="handleQuickImg(event)">
+      </div>
+      <div class="img-preview-wrap" id="qt-img-preview"></div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:4px">
+      <button class="btn-save" onclick="saveQuickTask()">Salvar demanda</button>
+      <button class="btn-sec" onclick="showPage('tasks',document.querySelector('[data-page=tasks]'))">Cancelar</button>
+    </div>`;
+}
+let quickImgs=[];
+function handleQuickImg(e){
+  Array.from(e.target.files).forEach(f=>{const r=new FileReader();r.onload=ev=>{quickImgs.push(ev.target.result);renderQuickImgPreview();};r.readAsDataURL(f);});
+  e.target.value='';
+}
+function renderQuickImgPreview(){
+  const w=document.getElementById('qt-img-preview');if(!w)return;
+  w.innerHTML=quickImgs.map((s,i)=>`<div class="img-thumb"><img src="${s}"><button onclick="quickImgs.splice(${i},1);renderQuickImgPreview()">×</button></div>`).join('');
+}
+async function saveQuickTask(){
+  const title=document.getElementById('qt-title').value.trim();
+  if(!title){alert('Informe o nome da tarefa.');return;}
+  try {
+    await db.collection('tasks').add({title,date:document.getElementById('qt-date').value,
+      deadline:document.getElementById('qt-deadline').value,clientId:document.getElementById('qt-client').value,
+      assigneeId:document.getElementById('qt-assignee').value,status:document.getElementById('qt-status').value,
+      priority:document.getElementById('qt-prio').value,observation:document.getElementById('qt-obs').value,
+      images:quickImgs,createdBy:me.id,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+    quickImgs=[]; toast('Demanda salva!');
+    showPage('tasks',document.querySelector('[data-page="tasks"]'));
+  } catch(e){alert('Erro: '+e.message);}
+}
+
+// COMUNICADOS
+function getLastSeen(){ return parseInt(localStorage.getItem('gd_comunic_seen')||'0'); }
+function markComunicSeen(){ localStorage.setItem('gd_comunic_seen', Date.now()); updateNotifBadge(); }
+function buildBottomNav(){
+  const isMobile = window.innerWidth <= 700;
+  const bn = document.getElementById('bottomNav');
+  if(!bn) return;
+  bn.style.display = isMobile ? 'block' : 'none';
+  if(!isMobile) return;
+
+  const adminItems = [
+    {page:'overview', icon:'📊', label:'Painel'},
+    {page:'tasks',    icon:'📋', label:'Demandas'},
+    {page:'comunicados', icon:'📢', label:'Avisos', badge:'notifBnAdmin'},
+    {page:'atualizacoes', icon:'🚀', label:'Versões'},
+    {page:'users',    icon:'👥', label:'Usuários'},
+  ];
+  const userItems = [
+    {page:'tasks',    icon:'📋', label:'Demandas'},
+    {page:'tasks', icon:'➕', label:'Nova', action:'openTaskModal(null)'},
+    {page:'comunicados', icon:'📢', label:'Avisos', badge:'notifBnUser'},
+    {page:'atualizacoes', icon:'🚀', label:'Versões'},
+  ];
+  const items = me.role==='admin' ? adminItems : userItems;
+  document.getElementById('bottomNavInner').innerHTML = items.map(it=>`
+    <button class="bn-item" id="bn-${it.page}" onclick="${it.action?it.action+';setBnActive(\''+it.page+'\')':'showPage(\''+it.page+'\',null);setBnActive(\''+it.page+'\')'}">
+      <span class="bn-icon">${it.icon}</span>
+      <span class="bn-label">${it.label}</span>
+      ${it.badge?`<span class="bn-badge" id="${it.badge}"></span>`:''}
+    </button>`).join('') + `
+    <button class="bn-item" onclick="togglePomoPanel()" style="min-width:48px">
+      <span class="bn-icon">🍅</span>
+      <span class="bn-label" id="bnPomoLabel">Foco</span>
+      <span style="font-size:10px;font-weight:700;color:var(--navy);display:block" id="bnPomoTime">25:00</span>
+    </button>
+    <button class="bn-item" onclick="doLogout()" style="min-width:40px">
+      <span class="bn-icon">🚪</span>
+      <span class="bn-label" style="color:#A32D2D">Sair</span>
+    </button>`;
+}
+
+function setBnActive(page){
+  document.querySelectorAll('.bn-item').forEach(b=>b.classList.remove('active'));
+  const btn=document.getElementById('bn-'+page);
+  if(btn) btn.classList.add('active');
+}
+
+function updateNotifBadge(){
+  const lastSeen=getLastSeen();
+  const newCount=comunicados.filter(c=>{
+    const ts=c.createdAt?.toMillis?c.createdAt.toMillis():(c.createdAt?.seconds?c.createdAt.seconds*1000:0);
+    return ts>lastSeen;
+  }).length;
+  ['notifAdmin','notifUser'].forEach(id=>{
+    const el=document.getElementById(id); if(!el)return;
+    if(newCount>0){el.textContent=newCount>9?'9+':newCount;el.classList.add('show');}
+    else el.classList.remove('show');
+  });
+  ['notifBnAdmin','notifBnUser'].forEach(id=>{
+    const el=document.getElementById(id); if(!el)return;
+    if(newCount>0){el.textContent=newCount>9?'9+':newCount;el.classList.add('show');}
+    else el.classList.remove('show');
+  });
+}
+
+function renderComunicados(){
+  if(!me){ return; }
+  const el=document.getElementById('comunicList'); if(!el)return;
+  if(!comunicados.length){el.innerHTML='<div class="comunic-card"><div class="comunic-empty">Nenhum comunicado publicado ainda.</div></div>';return;}
+  el.innerHTML='<div class="comunic-card">'+comunicados.map(c=>`
+    <div class="comunic-item">
+      <div class="comunic-text">${esc(c.message).replace(/\n/g,'<br>')}</div>
+      <div class="comunic-meta">📢 ${esc(c.authorName||'Admin')} · ${fmtDatetime(c.createdAt)}
+        ${me.role==='admin'?`<button class="action-btn danger" style="margin-left:8px" onclick="delComunic('${c.id}')">Excluir</button>`:''}
+      </div>
+    </div>`).join('')+'</div>';
+}
+function openComunicModal(){document.getElementById('cMsg').value='';showModal('mComunic');}
+async function saveComunic(){
+  const msg=document.getElementById('cMsg').value.trim();
+  if(!msg){alert('Digite o comunicado.');return;}
+  try {
+    await db.collection('comunicados').add({message:msg,authorName:me.name,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+    closeModals(); toast('Comunicado publicado!');
+  } catch(e){alert('Erro: '+e.message);}
+}
+async function delComunic(id){
+  if(!confirm('Excluir este comunicado?'))return;
+  await db.collection('comunicados').doc(id).delete(); toast('Comunicado removido.');
+}
+
+// USERS
+function renderUsers(){
+  const tbody=document.getElementById('usersTable'); if(!tbody)return;
+  if(!users.length){tbody.innerHTML='<tr class="empty-row"><td colspan="6">Nenhum usuário cadastrado.</td></tr>';return;}
+  tbody.innerHTML=users.map(u=>`<tr>
+    <td><strong style="font-weight:600">${esc(u.name)}</strong></td>
+    <td><code style="font-size:12px;background:#f4f5f9;padding:2px 7px;border-radius:5px">${esc(u.login)}</code></td>
+    <td>${u.role==='admin'?'<span class="badge b-admin">Admin</span>':'Colaborador'}</td>
+    <td style="font-size:13px;color:#555">${u.accessStart||'00:00'} – ${u.accessEnd||'23:59'}</td>
+    <td><span class="badge ${u.active?'b-ativo':'b-inativo'}">${u.active?'Ativo':'Inativo'}</span></td>
+    <td style="white-space:nowrap">
+      <button class="action-btn" onclick="openUserModal('${u.id}')">Editar</button>
+      ${u.id!==me.id?`<button class="action-btn danger" onclick="delUser('${u.id}')">Excluir</button>`:''}
+    </td>
+  </tr>`).join('');
+}
+function openUserModal(id){
+  const u=id?users.find(u=>u.id===id):null;
+  document.getElementById('mUserTitle').textContent=u?'Editar usuário':'Novo usuário';
+  document.getElementById('uId').value=id||'';
+  document.getElementById('uName').value=u?.name||'';
+  document.getElementById('uLogin').value=u?.login||'';
+  document.getElementById('uPass').value=u?.password||'';
+  document.getElementById('uRole').value=u?.role||'user';
+  document.getElementById('uStart').value=u?.accessStart||'08:00';
+  document.getElementById('uEnd').value=u?.accessEnd||'18:00';
+  document.getElementById('uActive').value=String(u?.active!==false);
+  showModal('mUser');
+}
+async function saveUser(){
+  const id=document.getElementById('uId').value;
+  const name=document.getElementById('uName').value.trim();
+  const login=document.getElementById('uLogin').value.trim();
+  const pass=document.getElementById('uPass').value.trim();
+  if(!name||!login||!pass){alert('Preencha nome, login e senha.');return;}
+  const data={name,login,password:pass,role:document.getElementById('uRole').value,
+    accessStart:document.getElementById('uStart').value,accessEnd:document.getElementById('uEnd').value,
+    active:document.getElementById('uActive').value==='true'};
+  try{
+    if(id){await db.collection('users').doc(id).update(data);}else{await db.collection('users').add(data);}
+    closeModals(); toast('Usuário salvo!');
+  }catch(e){alert('Erro: '+e.message);}
+}
+async function delUser(id){
+  if(!confirm('Excluir este usuário?'))return;
+  await db.collection('users').doc(id).delete(); toast('Usuário removido.');
+}
+
+// CLIENTS
+function renderClients(){
+  const tbody=document.getElementById('clientsTable'); if(!tbody)return;
+  if(!clients.length){tbody.innerHTML='<tr class="empty-row"><td colspan="3">Nenhum cliente cadastrado.</td></tr>';return;}
+  tbody.innerHTML=clients.map(c=>`<tr>
+    <td><strong style="font-weight:600">${esc(c.name)}</strong></td>
+    <td><span style="color:#666;font-size:13px">${esc(c.sector)}</span></td>
+    <td style="white-space:nowrap">
+      <button class="action-btn" onclick="openClientModal('${c.id}')">Editar</button>
+      <button class="action-btn danger" onclick="delClient('${c.id}')">Excluir</button>
+    </td>
+  </tr>`).join('');
+}
+function openClientModal(id){
+  const c=id?clients.find(c=>c.id===id):null;
+  document.getElementById('mClientTitle').textContent=c?'Editar cliente':'Novo cliente';
+  document.getElementById('cId').value=id||'';
+  document.getElementById('cName').value=c?.name||'';
+  document.getElementById('cSector').value=c?.sector||'';
+  showModal('mClient');
+}
+async function saveClient(){
+  const id=document.getElementById('cId').value;
+  const name=document.getElementById('cName').value.trim();
+  const sector=document.getElementById('cSector').value.trim();
+  if(!name){alert('Informe o nome do cliente.');return;}
+  const data={name,sector};
+  try{
+    if(id){await db.collection('clients').doc(id).update(data);}else{await db.collection('clients').add(data);}
+    closeModals(); toast('Cliente salvo!');
+  }catch(e){alert('Erro: '+e.message);}
+}
+async function delClient(id){
+  if(!confirm('Excluir este cliente?'))return;
+  await db.collection('clients').doc(id).delete(); toast('Cliente removido.');
+}
+
+// MODAL — NÃO fecha ao clicar fora
+function showModal(id){
+  document.getElementById('overlay').style.display='flex';
+  document.querySelectorAll('.modal').forEach(m=>m.style.display='none');
+  document.getElementById(id).style.display='block';
+}
+function closeModals(){document.getElementById('overlay').style.display='none';}
+
+// HELPERS
+function today(){return new Date().toISOString().split('T')[0];}
+function fmtDate(d){if(!d)return'—';const[y,m,dd]=d.split('-');return`${dd}/${m}/${y}`;}
+function fmtDatetime(ts){
+  if(!ts)return'—';
+  const d=ts.toDate?ts.toDate():new Date(ts);
+  return d.toLocaleDateString('pt-BR')+' '+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+const statusMap={pendente:['b-pendente','Pendente'],em_andamento:['b-andamento','Em andamento'],concluido:['b-concluido','Concluído'],cancelado:['b-cancelado','Cancelado']};
+const prioMap={alta:['b-alta','Alta'],media:['b-media','Média'],baixa:['b-baixa','Baixa']};
+function sbadge(s){const[c,l]=statusMap[s]||['b-cancelado',s];return`<span class="badge ${c}">${l}</span>`;}
+function pbadge(p){const[c,l]=prioMap[p]||['b-cancelado',p];return`<span class="badge ${c}">${l}</span>`;}
+function toast(msg){const el=document.createElement('div');el.className='toast';el.textContent=msg;document.body.appendChild(el);setTimeout(()=>el.remove(),3000);}
+
+// ---- ATUALIZAÇÕES ----
+function renderMonthFilter(){
+  const sel = document.getElementById('atualizFilter'); if(!sel) return;
+  const months = [...new Set(atualizacoes.map(a => {
+    const d = a.createdAt?.toDate ? a.createdAt.toDate() : new Date();
+    return d.getFullYear()+'-'+(d.getMonth()+1).toString().padStart(2,'0');
+  }))].sort().reverse();
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">Todos os meses</option>' +
+    months.map(m => {
+      const [y,mo] = m.split('-');
+      const label = new Date(y, mo-1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+      return `<option value="${m}" ${m===cur?'selected':''}>${label.charAt(0).toUpperCase()+label.slice(1)}</option>`;
+    }).join('');
+}
+
+function renderAtualizacoes(){
+  renderMonthFilter();
+  const filter = document.getElementById('atualizFilter')?.value||'';
+  let list = atualizacoes;
+  if(filter){
+    list = list.filter(a=>{
+      const d = a.createdAt?.toDate ? a.createdAt.toDate() : new Date();
+      const key = d.getFullYear()+'-'+(d.getMonth()+1).toString().padStart(2,'0');
+      return key === filter;
+    });
+  }
+  const cnt = document.getElementById('atualizCount');
+  if(cnt) cnt.textContent = list.length ? list.length+' atualização(ões)' : '';
+  const el = document.getElementById('atualizacaoList'); if(!el) return;
+  if(!list.length){
+    el.innerHTML='<div class="comunic-card"><div class="comunic-empty">Nenhuma atualização publicada ainda.</div></div>';return;
+  }
+  el.innerHTML = list.map(a => {
+    const hasFiles = a.files && a.files.length > 0;
+    const hasVideo = !!a.videoData;
+    const d = a.createdAt?.toDate ? a.createdAt.toDate() : null;
+    const dateStr = d ? d.toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'}) : '';
+    return `<div style="background:#fff;border-radius:16px;border:1px solid #e4e6f0;overflow:hidden;margin-bottom:1.25rem">
+      <!-- header -->
+      <div style="background:var(--navy);padding:1rem 1.25rem;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <span style="background:rgba(255,255,255,.18);color:white;font-size:13px;font-weight:700;padding:4px 14px;border-radius:99px">${esc(a.version||'v?')}</span>
+        <span style="font-size:15px;font-weight:700;color:white;flex:1">${esc(a.title||'')}</span>
+        <span style="font-size:11px;color:rgba(255,255,255,.6)">${dateStr}</span>
+        ${me.role==='admin'?`<button onclick="delAtualizacao('${a.id}')" style="background:rgba(255,255,255,.15);color:white;border:none;border-radius:7px;padding:4px 10px;font-size:12px;cursor:pointer">Excluir</button>`:''}
+      </div>
+      <!-- body -->
+      <div style="padding:1.25rem">
+        ${a.description?`<div style="font-size:14px;color:#333;line-height:1.75;white-space:pre-wrap;margin-bottom:${hasVideo||hasFiles?'1rem':'0'}">${esc(a.description)}</div>`:''}
+        ${hasVideo?`<div style="margin-bottom:${hasFiles?'1rem':'0'}">
+          <video controls style="width:100%;max-height:320px;border-radius:10px;background:#000" preload="metadata">
+            <source src="${a.videoData}" type="${a.videoType||'video/mp4'}">
+            Seu navegador não suporta reprodução de vídeo.
+          </video>
+        </div>`:''}
+        ${hasFiles?`<div style="display:flex;flex-wrap:wrap;gap:8px">
+          ${a.files.map(f=>{
+            const src=f.data||f; const name=f.name||'arquivo';
+            if(isPdf(f)) return `<a href="${src}" download="${esc(name)}" class="pdf-thumb">📄 ${esc(name)}</a>`;
+            if(isExcel(f)) return `<a href="${src}" download="${esc(name)}" class="pdf-thumb">📊 ${esc(name)}</a>`;
+            return `<a href="${src}" target="_blank"><img src="${src}" style="height:80px;border-radius:8px;border:1px solid #e4e6f0;object-fit:cover"></a>`;
+          }).join('')}
+        </div>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openAtualizacaoModal(){
+  pendingAtualizFiles=[]; pendingAtualizVideo=null;
+  document.getElementById('aVersion').value='';
+  document.getElementById('aDate').value=today();
+  document.getElementById('aTitle').value='';
+  document.getElementById('aDesc').value='';
+  document.getElementById('aVideoPreview').innerHTML='';
+  document.getElementById('aFilePreview').innerHTML='';
+  showModal('mAtualizacao');
+}
+
+function handleAtualizVideo(e){
+  const file = e.target.files[0]; if(!file) return;
+  const MAX_MB=15;
+  if(file.size>MAX_MB*1024*1024){toast('⚠️ Vídeo muito grande. Máximo '+MAX_MB+'MB.');e.target.value='';return;}
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    pendingAtualizVideo={data:ev.target.result,name:file.name,type:file.type};
+    document.getElementById('aVideoPreview').innerHTML=`
+      <div style="display:flex;align-items:center;gap:8px;background:#f4f5f9;border-radius:8px;padding:8px 12px;margin-top:6px">
+        <span style="font-size:20px">🎥</span>
+        <span style="font-size:13px;font-weight:600;color:var(--navy);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(file.name)}</span>
+        <span style="font-size:11px;color:#888">${(file.size/1024/1024).toFixed(1)}MB</span>
+        <button onclick="pendingAtualizVideo=null;document.getElementById('aVideoPreview').innerHTML='';document.getElementById('aVideoInput').value=''" style="background:none;border:none;cursor:pointer;color:#A32D2D;font-size:16px">×</button>
+      </div>`;
+  };
+  reader.readAsDataURL(file);
+  e.target.value='';
+}
+
+function handleAtualizacaoFile(e){
+  const files=Array.from(e.target.files);
+  const MAX_MB=3;
+  files.forEach(file=>{
+    if(file.size>MAX_MB*1024*1024){toast('⚠️ "'+file.name+'" excede '+MAX_MB+'MB.');return;}
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      const mime=file.type||detectMime(file.name);
+      pendingAtualizFiles.push({data:ev.target.result,name:file.name,type:mime});
+      renderAtualizFilePreview();
+    };
+    reader.readAsDataURL(file);
+  });
+  e.target.value='';
+}
+
+function renderAtualizFilePreview(){
+  const wrap=document.getElementById('aFilePreview'); if(!wrap)return;
+  wrap.innerHTML=pendingAtualizFiles.map((item,i)=>{
+    if(isImage(item)) return `<div class="img-thumb"><img src="${item.data}"><button onclick="pendingAtualizFiles.splice(${i},1);renderAtualizFilePreview()">×</button></div>`;
+    return `<div class="img-thumb" style="width:auto;position:relative">
+      <div style="display:flex;align-items:center;gap:6px;background:#f4f5f9;border:1px solid #e4e6f0;border-radius:8px;padding:7px 10px;font-size:12px;color:var(--navy);font-weight:600;max-width:150px">
+        ${fileIcon(item)} <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(item.name)}</span>
+      </div>
+      <button onclick="pendingAtualizFiles.splice(${i},1);renderAtualizFilePreview()" style="position:absolute;top:-5px;right:-5px;background:#A32D2D;color:white;border:none;border-radius:50%;width:18px;height:18px;font-size:11px;cursor:pointer;line-height:18px;text-align:center;padding:0">×</button>
+    </div>`;
+  }).join('');
+}
+
+async function saveAtualizacao(){
+  const version=document.getElementById('aVersion').value.trim();
+  const title=document.getElementById('aTitle').value.trim();
+  if(!version||!title){alert('Preencha a versão e o nome da atualização.');return;}
+  try{
+    const data={
+      version, title,
+      date: document.getElementById('aDate').value,
+      description: document.getElementById('aDesc').value,
+      files: pendingAtualizFiles,
+      videoData: pendingAtualizVideo?.data||null,
+      videoType: pendingAtualizVideo?.type||null,
+      videoName: pendingAtualizVideo?.name||null,
+      authorName: me.name,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    await db.collection('atualizacoes').add(data);
+    pendingAtualizFiles=[]; pendingAtualizVideo=null;
+    closeModals(); toast('Atualização publicada!');
+  }catch(e){
+    if(e.message&&e.message.includes('exceeds')){
+      alert('Arquivo muito grande para salvar. Reduza o tamanho do vídeo ou dos anexos.');
+    } else {
+      alert('Erro ao salvar: '+e.message);
+    }
+  }
+}
+
+async function delAtualizacao(id){
+  if(!confirm('Excluir esta atualização?'))return;
+  await db.collection('atualizacoes').doc(id).delete();
+  toast('Atualização removida.');
+}
+
+// ---- POMODORO ----
+let pomoPhase='work', pomoRunning=false, pomoInterval=null;
+let pomoTotalSecs=25*60, pomoRemaining=25*60;
+
+function pomoApplySettings(){
+  if(pomoRunning) return;
+  const w=parseInt(document.getElementById('pomoWorkMin').value)||25;
+  const r=parseInt(document.getElementById('pomoRestMin').value)||5;
+  pomoTotalSecs = (pomoPhase==='work'?w:r)*60;
+  pomoRemaining = pomoTotalSecs;
+  pomoRenderTime();
+}
+
+function pomoFmt(s){const m=Math.floor(s/60),sec=s%60;return`${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;}
+
+function pomoRenderTime(){
+  // sync mobile bottom nav timer
+  const bnt = document.getElementById('bnPomoTime');
+  const bnl = document.getElementById('bnPomoLabel');
+  if(bnt) bnt.textContent = pomoFmt(pomoRemaining);
+  if(bnl) bnl.textContent = pomoPhase==='work'?'Foco':'Descanso';
+  const t=pomoFmt(pomoRemaining);
+  document.getElementById('pomoFabTime').textContent=t;
+  document.getElementById('pomoBigTime').textContent=t;
+  const pct=Math.round((pomoRemaining/pomoTotalSecs)*100);
+  const fill=document.getElementById('pomoProgressFill');
+  fill.style.width=pct+'%';
+  fill.className='pomo-progress-fill'+(pomoPhase==='rest'?' rest':'');
+  const dot=document.getElementById('pomoDot');
+  dot.className='pomo-dot '+(pomoPhase==='work'?'work':'rest');
+  const phase=document.getElementById('pomoPhaseLabel');
+  if(pomoPhase==='work'){phase.textContent='Foco — trabalho';phase.className='pomo-phase work';}
+  else{phase.textContent='Descanso — respira!';phase.className='pomo-phase rest';}
+  document.getElementById('pomoFabLabel').textContent=pomoPhase==='work'?'Foco':'Descanso';
+}
+
+function pomoStartStop(){
+  if(pomoRunning){
+    clearInterval(pomoInterval); pomoRunning=false;
+    document.getElementById('pomoStartBtn').textContent='▶ Continuar';
+  } else {
+    pomoRunning=true;
+    document.getElementById('pomoStartBtn').textContent='⏸ Pausar';
+    pomoInterval=setInterval(()=>{
+      pomoRemaining--;
+      pomoRenderTime();
+      if(pomoRemaining<=0){
+        clearInterval(pomoInterval); pomoRunning=false;
+        pomoBeep(pomoPhase);
+        if(pomoPhase==='work'){
+          pomoPhase='rest';
+          const r=parseInt(document.getElementById('pomoRestMin').value)||5;
+          pomoTotalSecs=r*60; pomoRemaining=r*60;
+          pomoNotify('☕ Hora do descanso!','Você completou um Pomodoro. Descanse um pouco.');
+        } else {
+          pomoPhase='work';
+          const w=parseInt(document.getElementById('pomoWorkMin').value)||25;
+          pomoTotalSecs=w*60; pomoRemaining=w*60;
+          pomoNotify('🍅 Hora de focar!','Descanso encerrado. Vamos trabalhar!');
+        }
+        document.getElementById('pomoStartBtn').textContent='▶ Iniciar';
+        pomoRenderTime();
+      }
+    },1000);
+  }
+}
+
+function pomoReset(){
+  clearInterval(pomoInterval); pomoRunning=false; pomoPhase='work';
+  const w=parseInt(document.getElementById('pomoWorkMin').value)||25;
+  pomoTotalSecs=w*60; pomoRemaining=w*60;
+  document.getElementById('pomoStartBtn').textContent='▶ Iniciar';
+  pomoRenderTime();
+}
+
+function togglePomoPanel(){
+  const p=document.getElementById('pomoPanel');
+  p.classList.toggle('open');
+}
+
+function pomoBeep(phase){
+  try {
+    const ctx=new(window.AudioContext||window.webkitAudioContext)();
+    const freqs=phase==='work'?[523,659,784]:[784,659,523];
+    freqs.forEach((f,i)=>{
+      const o=ctx.createOscillator(), g=ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.frequency.value=f; o.type='sine';
+      g.gain.setValueAtTime(0,ctx.currentTime+i*0.22);
+      g.gain.linearRampToValueAtTime(0.3,ctx.currentTime+i*0.22+0.05);
+      g.gain.linearRampToValueAtTime(0,ctx.currentTime+i*0.22+0.35);
+      o.start(ctx.currentTime+i*0.22);
+      o.stop(ctx.currentTime+i*0.22+0.4);
+    });
+  } catch(e){}
+}
+
+function pomoNotify(title, body){
+  toast(title+' '+body);
+  if('Notification' in window && Notification.permission==='granted'){
+    new Notification(title,{body,icon:'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🍅</text></svg>'});
+  } else if('Notification' in window && Notification.permission!=='denied'){
+    Notification.requestPermission();
+  }
+}
+
+// Show Pomodoro fab after login
+function showPomoFab(){document.getElementById('pomoFab').style.display='flex';}
+pomoRenderTime();
+</script>
+</body>
+</html>

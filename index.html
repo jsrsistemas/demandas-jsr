@@ -251,6 +251,9 @@ const PSTC={
   sem_interacao:{l:'Sem interação',c:'#DC2626',bg:'#FEF2F2',bd:'#FECACA'}
 }
 const NP={info:{l:'Informativo',c:'#2563EB',bg:'#EFF6FF',bd:'#BFDBFE',top:'#2563EB'},warning:{l:'Atenção',c:'#D97706',bg:'#FFFBEB',bd:'#FDE68A',top:'#F59E0B'},urgent:{l:'Urgente',c:'#DC2626',bg:'#FEF2F2',bd:'#FECACA',top:'#DC2626'}}
+// Mapeamento de status antigos para novos (compatibilidade)
+const PST_MAP={contato:'primeiro_contato',proposta:'envio_proposta',aguardando:'primeiro_contato',nao_retornou:'primeiro_contato',aceite:'fechado',nao_aceite:'nao_fechado'}
+function pstNorm(s){return PST[s]?s:(PST_MAP[s]||'primeiro_contato')}
 const AVC=n=>{const i=(n?.charCodeAt(0)||0)%5;return[['#2563EB','#DBEAFE'],['#059669','#D1FAE5'],['#7C3AED','#EDE9FE'],['#D97706','#FEF3C7'],['#DC2626','#FEE2E2']][i]}
 
 // ── UTILS ───────────────────────────────────────────────────
@@ -322,7 +325,7 @@ function buildSidebar(){
     const n=ap(el('div','nav-item'+(sec===it.id?' on':'')),ap(el('span','ni-icon'),it.i),ap(el('span','ni-label'),it.l));
     if(it.id==='demands'){const v=demands.filter(d=>d.status==='open').length;if(v)ap(n,ap(el('span','ni-badge'),String(v)))}
     if(it.id==='notices'){const v=notices.filter(x=>!x.readBy?.includes(CU.uid)).length;if(v)ap(n,ap(el('span','ni-badge'),String(v)))}
-    if(it.id==='prospects'){const v=prospects.filter(p=>['contato','proposta','aguardando'].includes(p.status)).length;if(v)ap(n,ap(el('span','ni-badge info'),String(v)))}
+    if(it.id==='prospects'){const v=prospects.filter(p=>!['fechado','nao_fechado'].includes(pstNorm(p.status))).length;if(v)ap(n,ap(el('span','ni-badge info'),String(v)))}
     n.onclick=()=>{sec=it.id;renderApp()};nav.appendChild(n);
   });
   sb.appendChild(nav);
@@ -547,16 +550,16 @@ function buildProspects(){
   const nb=ap(el('button','btn btn-p btn-sm'),'+ Novo prospect');nb.onclick=()=>openProspectModal();h.appendChild(nb);w.appendChild(h);
   // Stats
   const sg=ap(el('div','stats-row stats-4 mb20'));
-  [{v:prospects.length,l:'Total',c:'var(--blue)',bc:''},{v:prospects.filter(p=>['contato','proposta','aguardando'].includes(p.status)).length,l:'Em andamento',c:'var(--amber)',bc:''},{v:prospects.filter(p=>p.status==='aceite').length,l:'Aceites',c:'var(--green)',bc:''},{v:prospects.filter(p=>p.status==='nao_aceite').length,l:'Não aceites',c:'var(--red)',bc:''}].forEach((s,i)=>{
+  [{v:prospects.length,l:'Total',c:'var(--blue)',bc:''},{v:prospects.filter(p=>!['fechado','nao_fechado'].includes(pstNorm(p.status))).length,l:'Em andamento',c:'var(--amber)',bc:''},{v:prospects.filter(p=>pstNorm(p.status)==='fechado').length,l:'Fechados',c:'var(--green)',bc:''},{v:prospects.filter(p=>pstNorm(p.status)==='nao_fechado').length,l:'Não fechados',c:'var(--red)',bc:''}].forEach((s,i)=>{
     const colors=['#3B82F6','#F59E0B','#10B981','#EF4444'];
     ap(sg,ap(el('div','stat-c',{borderLeftColor:colors[i]}),ap(el('div','stat-v',{color:colors[i]}),String(s.v)),ap(el('div','stat-l'),s.l)));
   });w.appendChild(sg);
   // Kanban
   const kb=el('div','kanban');
   Object.entries(PST).forEach(([k,v])=>{
-    const col=el('div','kb-col');const cnt=prospects.filter(p=>p.status===k).length;
+    const col=el('div','kb-col');const cnt=prospects.filter(p=>pstNorm(p.status)===k).length;
     const ch=ap(el('div','kb-col-h'),ap(el('div','',{width:'8px',height:'8px',borderRadius:'50%',background:v.c,flexShrink:'0'})),ap(el('div','kb-col-title'),v.l),ap(el('div','kb-col-count',{background:v.bg,color:v.c,border:`1px solid ${v.bd}`}),String(cnt)));col.appendChild(ch);
-    const cards=el('div','kb-cards');const cp2=prospects.filter(p=>p.status===k);
+    const cards=el('div','kb-cards');const cp2=prospects.filter(p=>pstNorm(p.status)===k);
     if(!cp2.length)ap(cards,ap(el('div','kb-empty'),'Nenhum prospect'));
     cp2.forEach(p=>{
       const kc=el('div','kb-card');ap(kc,ap(el('div','kb-card-name'),p.name),...(p.segment?[ap(el('div','kb-card-sub'),p.segment)]:[]));
@@ -604,7 +607,7 @@ function openProspectDetail(p){
   const ov=el('div','overlay');const mo=el('div','modal');
   const mh=ap(el('div','modal-h'),ap(el('div','modal-title'),p.name));const x=ap(el('button','modal-x'),'×');x.onclick=()=>ov.remove();mh.appendChild(x);
   const mb=el('div','modal-b');
-  const ps2=PST[p.status]||PST.primeiro_contato;
+  const ps2=PST[pstNorm(p.status)]||PST.primeiro_contato;
   const sc2detail=PSTC[p.statusContato];
   [[' Status',tag_({c:ps2.c,bg:ps2.bg,bd:ps2.bd},ps2.l)],['Status contato',sc2detail?tag_({c:sc2detail.c,bg:sc2detail.bg,bd:sc2detail.bd},sc2detail.l):null],['Contato',p.contact],['Indicado por',p.indicatedBy],['Segmento',p.segment],['Qtd. empresas',p.qtdEmpresas?String(p.qtdEmpresas)+' empresa(s)':null],['Valor',fmtMoney(p.value)],['Observações',p.notes],['Criado por',p.createdByName]].filter(r=>r[1]).forEach(([k,v])=>{
     const r=ap(el('div','flex gap8 mb8',{alignItems:'flex-start'}),ap(el('span','f12 fw6 tc3',{minWidth:'100px'}),k+':'));
@@ -666,7 +669,7 @@ function subscribe(){
   unsubs.push(onSnapshot(query(collection(db,'prospects'),orderBy('createdAt','desc')),snap=>{prospects=snap.docs.map(d=>({id:d.id,...d.data()}));if(sec==='prospects')renderSection();else updateBadges()}));
   getDocs(collection(db,'users')).then(s=>{users=s.docs.map(d=>({id:d.id,...d.data()}))});
 }
-function updateBadges(){document.querySelectorAll('.nav-item').forEach(n=>{const l=n.querySelector('.ni-label');if(!l)return;n.querySelectorAll('.ni-badge').forEach(b=>b.remove());const txt=l.textContent;if(txt==='Demandas'){const v=demands.filter(d=>d.status==='open').length;if(v)ap(n,ap(el('span','ni-badge'),String(v)))}if(txt==='Avisos'){const v=notices.filter(x=>!x.readBy?.includes(CU.uid)).length;if(v)ap(n,ap(el('span','ni-badge'),String(v)))}if(txt==='Prospects'){const v=prospects.filter(p=>['contato','proposta','aguardando'].includes(p.status)).length;if(v)ap(n,ap(el('span','ni-badge info'),String(v)))}})}
+function updateBadges(){document.querySelectorAll('.nav-item').forEach(n=>{const l=n.querySelector('.ni-label');if(!l)return;n.querySelectorAll('.ni-badge').forEach(b=>b.remove());const txt=l.textContent;if(txt==='Demandas'){const v=demands.filter(d=>d.status==='open').length;if(v)ap(n,ap(el('span','ni-badge'),String(v)))}if(txt==='Avisos'){const v=notices.filter(x=>!x.readBy?.includes(CU.uid)).length;if(v)ap(n,ap(el('span','ni-badge'),String(v)))}if(txt==='Prospects'){const v=prospects.filter(p=>!['fechado','nao_fechado'].includes(pstNorm(p.status))).length;if(v)ap(n,ap(el('span','ni-badge info'),String(v)))}})}
 
 // ── LOGIN ────────────────────────────────────────────────────
 function renderLogin(){

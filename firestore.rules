@@ -1,0 +1,71 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Função auxiliar: verifica se o usuário é admin ──
+    function isAdmin() {
+      return request.auth != null
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // ── Função auxiliar: verifica se está autenticado ──
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    // ──────────────────────────────────────────────────
+    //  COLEÇÃO: users
+    //  Admin pode ler e escrever todos os perfis.
+    //  Usuário comum só pode ler e editar o próprio perfil.
+    // ──────────────────────────────────────────────────
+    match /users/{userId} {
+      allow read: if isAuth();
+      allow create: if isAdmin();
+      allow update: if isAdmin() || request.auth.uid == userId;
+      allow delete: if isAdmin();
+    }
+
+    // ──────────────────────────────────────────────────
+    //  COLEÇÃO: demands
+    //  - internal: qualquer usuário autenticado lê/escreve
+    //  - private:  só o próprio criador lê/escreve
+    //  - restricted: só admins
+    // ──────────────────────────────────────────────────
+    match /demands/{demandId} {
+
+      // LEITURA
+      allow read: if isAuth() && (
+        resource.data.type == 'internal'
+        || (resource.data.type == 'private' && resource.data.createdBy == request.auth.uid)
+        || (resource.data.type == 'restricted' && isAdmin())
+      );
+
+      // CRIAÇÃO: usuário autenticado pode criar; 'restricted' só admin
+      allow create: if isAuth() && (
+        request.resource.data.type != 'restricted' || isAdmin()
+      );
+
+      // ATUALIZAÇÃO: criador ou admin podem atualizar
+      allow update: if isAuth() && (
+        resource.data.createdBy == request.auth.uid || isAdmin()
+      );
+
+      // EXCLUSÃO: somente admin
+      allow delete: if isAdmin();
+
+      // ── Sub-coleção: comentários ──
+      // Qualquer pessoa que pode ler a demanda, pode comentar
+      match /comments/{commentId} {
+        allow read: if isAuth() && (
+          get(/databases/$(database)/documents/demands/$(demandId)).data.type == 'internal'
+          || get(/databases/$(database)/documents/demands/$(demandId)).data.createdBy == request.auth.uid
+          || isAdmin()
+        );
+        allow create: if isAuth();
+        allow update, delete: if isAdmin() || resource.data.authorId == request.auth.uid;
+      }
+    }
+
+  }
+}

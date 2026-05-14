@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>DemandFlow — Gestão de Demandas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Sora',sans-serif;background:#F5F5F3;color:#1a1a18}
+    input,select,textarea,button{font-family:'Sora',sans-serif}
+    input,select,textarea{border:1px solid #D3D1C7;border-radius:8px;padding:8px 12px;font-size:14px;outline:none;transition:border-color .15s;background:#fff;color:#1a1a18}
+    input:focus,select:focus,textarea:focus{border-color:#0F6E56}
+    ::-webkit-scrollbar{width:5px}
+    ::-webkit-scrollbar-thumb{background:#D3D1C7;border-radius:3px}
+  </style>
+</head>
+<body>
+<div id="root"></div>
+
+<!-- Firebase SDKs -->
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js'
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js'
+import { getFirestore, collection, addDoc, query, where, onSnapshot, orderBy, doc, updateDoc, serverTimestamp, getDoc, setDoc, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js'
+
+// ─── CONFIGURAÇÃO FIREBASE ───────────────────────────────────
+const firebaseConfig = {
+  apiKey: "AIzaSyByb5xL5fnmW3wcc7OU2BhuCUf0eTxjYuI",
+  authDomain: "demanda-jsr.firebaseapp.com",
+  projectId: "demanda-jsr",
+  storageBucket: "demanda-jsr.firebasestorage.app",
+  messagingSenderId: "557935888143",
+  appId: "1:557935888143:web:2de3954f8769430488e07a",
+  measurementId: "G-MCHE0PE115"
+}
+
+const app = initializeApp(firebaseConfig)
+const auth = getAuth(app)
+const db = getFirestore(app)
+
+// ─── UTILITÁRIOS ─────────────────────────────────────────────
+function timeAgo(ts) {
+  if (!ts) return '...'
+  const d = ts.toDate ? ts.toDate() : new Date(ts)
+  const m = Math.floor((Date.now() - d) / 60000)
+  if (m < 1) return 'agora mesmo'
+  if (m < 60) return m + 'min atrás'
+  const h = Math.floor(m / 60)
+  if (h < 24) return h + 'h atrás'
+  return Math.floor(h / 24) + 'd atrás'
+}
+function getInitials(name = '') {
+  return name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+}
+function el(tag, attrs = {}, ...children) {
+  const e = document.createElement(tag)
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === 'style' && typeof v === 'object') Object.assign(e.style, v)
+    else if (k.startsWith('on')) e.addEventListener(k.slice(2).toLowerCase(), v)
+    else e.setAttribute(k, v)
+  }
+  for (const c of children) {
+    if (c == null) continue
+    e.appendChild(typeof c === 'string' ? document.createTextNode(c) : c)
+  }
+  return e
+}
+
+// ─── ESTADO GLOBAL ───────────────────────────────────────────
+let currentUser = null
+let currentProfile = null
+let demands = []
+let unsubscribers = []
+
+const STATUS = {
+  open:        { label: 'Aberto',       color: '#185FA5', bg: '#E6F1FB', bd: '#85B7EB' },
+  in_progress: { label: 'Em andamento', color: '#BA7517', bg: '#FAEEDA', bd: '#EF9F27' },
+  resolved:    { label: 'Resolvido',    color: '#3B6D11', bg: '#EAF3DE', bd: '#97C459' },
+}
+const PRIORITY = {
+  high:   { label: 'Alta',   color: '#A32D2D', bg: '#FCEBEB', bd: '#F09595' },
+  medium: { label: 'Média',  color: '#BA7517', bg: '#FAEEDA', bd: '#EF9F27' },
+  low:    { label: 'Baixa',  color: '#5F5E5A', bg: '#F1EFE8', bd: '#B4B2A9' },
+}
+const TYPES = {
+  internal:   { label: 'Interna',  icon: '●', color: '#0F6E56', bg: '#E1F5EE', bd: '#5DCAA5', desc: 'Todos os usuários veem' },
+  private:    { label: 'Privada',  icon: '◆', color: '#534AB7', bg: '#EEEDFE', bd: '#AFA9EC', desc: 'Somente você vê' },
+  restricted: { label: 'Restrita', icon: '▲', color: '#993C1D', bg: '#FAECE7', bd: '#F0997B', desc: 'Somente administradores' },
+}
+
+// ─── COMPONENTES ─────────────────────────────────────────────
+function tag(cfg, text) {
+  return el('span', {
+    style: {
+      display:'inline-flex', alignItems:'center', fontSize:'11px',
+      padding:'2px 9px', borderRadius:'4px', background:cfg.bg,
+      color:cfg.color, fontWeight:'500', whiteSpace:'nowrap',
+      border:`0.5px solid ${cfg.bd}`, lineHeight:'1.6'
+    }
+  }, text || cfg.label)
+}
+
+function avatar(name, size = 32) {
+  const colors = [
+    {c:'#0F6E56',b:'#E1F5EE'},
+    {c:'#185FA5',b:'#E6F1FB'},
+    {c:'#534AB7',b:'#EEEDFE'},
+    {c:'#993C1D',b:'#FAECE7'}
+  ]
+  const i = (name?.charCodeAt(0) || 0) % 4
+  return el('div', {
+    style: {
+      width:size+'px', height:size+'px', borderRadius:'50%',
+      background:colors[i].b, display:'flex', alignItems:'center',
+      justifyContent:'center', fontSize:(size*.35)+'px', fontWeight:'600',
+      color:colors[i].c, flexShrink:'0', userSelect:'none'
+    }
+  }, getInitials(name))
+}
+
+function btn(text, onClick, variant = 'primary', small = false, disabled = false) {
+  const styles = {
+    primary:   { background:'#0F6E56', color:'#fff', border:'none' },
+    secondary: { background:'transparent', color:'#5F5E5A', border:'0.5px solid #B4B2A9' },
+    danger:    { background:'#FCEBEB', color:'#A32D2D', border:'0.5px solid #F09595' },
+  }
+  const b = el('button', {
+    style: {
+      padding: small ? '5px 12px' : '8px 18px',
+      borderRadius:'8px', fontSize: small ? '12px' : '13px',
+      fontWeight:'500', cursor: disabled ? 'not-allowed' : 'pointer',
+      opacity: disabled ? '0.5' : '1', transition:'opacity .15s',
+      ...styles[variant]
+    },
+    onClick
+  }, text)
+  if (disabled) b.disabled = true
+  return b
+}
+
+// ─── RENDER PRINCIPAL ─────────────────────────────────────────
+function render() {
+  const root = document.getElementById('root')
+  root.innerHTML = ''
+  if (!currentUser || !currentProfile) {
+    root.appendChild(renderLogin())
+  } else {
+    root.appendChild(renderDashboard())
+  }
+}
+
+// ─── TELA DE LOGIN ────────────────────────────────────────────
+function renderLogin() {
+  let email = '', password = ''
+
+  const errorBox = el('div', {
+    style: { display:'none', padding:'10px 14px', borderRadius:'8px',
+      background:'#FCEBEB', color:'#A32D2D', fontSize:'13px',
+      border:'0.5px solid #F09595', marginBottom:'4px' }
+  })
+
+  const emailInput = el('input', { type:'email', placeholder:'seu@email.com', style:{width:'100%'} })
+  emailInput.addEventListener('input', e => email = e.target.value)
+
+  const passInput = el('input', { type:'password', placeholder:'••••••••', style:{width:'100%'} })
+  passInput.addEventListener('input', e => password = e.target.value)
+
+  const submitBtn = el('button', {
+    style: { padding:'11px', borderRadius:'8px', background:'#0F6E56',
+      color:'#fff', border:'none', cursor:'pointer', fontSize:'14px',
+      fontWeight:'600', width:'100%', marginTop:'4px' },
+    onClick: async () => {
+      errorBox.style.display = 'none'
+      submitBtn.textContent = 'Entrando...'
+      submitBtn.disabled = true
+      try {
+        await signInWithEmailAndPassword(auth, email, password)
+      } catch {
+        errorBox.textContent = 'E-mail ou senha incorretos.'
+        errorBox.style.display = 'block'
+        submitBtn.textContent = 'Entrar'
+        submitBtn.disabled = false
+      }
+    }
+  }, 'Entrar')
+
+  passInput.addEventListener('keydown', e => { if (e.key === 'Enter') submitBtn.click() })
+
+  return el('div', {
+    style: { minHeight:'100vh', display:'flex', alignItems:'center',
+      justifyContent:'center', background:'#F5F5F3', padding:'16px' }
+  },
+    el('div', { style:{ width:'100%', maxWidth:'420px' } },
+      el('div', {
+        style: { background:'#fff', border:'0.5px solid #D3D1C7',
+          borderRadius:'16px', padding:'40px 32px' }
+      },
+        el('div', { style:{ textAlign:'center', marginBottom:'28px' } },
+          el('div', {
+            style: { width:'52px', height:'52px', borderRadius:'13px',
+              background:'#0F6E56', display:'flex', alignItems:'center',
+              justifyContent:'center', margin:'0 auto 14px',
+              color:'#fff', fontSize:'24px', fontWeight:'700' }
+          }, 'D'),
+          el('h1', { style:{ fontSize:'22px', fontWeight:'600', marginBottom:'6px' } }, 'DemandFlow'),
+          el('p', { style:{ fontSize:'13px', color:'#888780' } }, 'Gestão de demandas do suporte')
+        ),
+        el('div', { style:{ display:'flex', flexDirection:'column', gap:'14px' } },
+          el('div', {},
+            el('label', { style:{ fontSize:'13px', color:'#5F5E5A', display:'block', marginBottom:'5px', fontWeight:'500' } }, 'E-mail'),
+            emailInput
+          ),
+          el('div', {},
+            el('label', { style:{ fontSize:'13px', color:'#5F5E5A', display:'block', marginBottom:'5px', fontWeight:'500' } }, 'Senha'),
+            passInput
+          ),
+          errorBox,
+          submitBtn
+        )
+      ),
+      el('p', { style:{ textAlign:'center', fontSize:'12px', color:'#B4B2A9', marginTop:'16px' } },
+        'Sem acesso? Solicite ao administrador do sistema.'
+      )
+    )
+  )
+}
+
+// ─── DASHBOARD ────────────────────────────────────────────────
+function renderDashboard() {
+  const isAdmin = currentProfile?.role === 'admin'
+  let currentTab = 'internal'
+  let selectedDemand = null
+  let panelMode = null // null | 'new' | 'admin' | 'detail'
+  let searchText = ''
+
+  const wrapper = el('div', { style:{ minHeight:'100vh', background:'#F5F5F3' } })
+
+  // ── Header
+  const header = el('div', {
+    style: { background:'#fff', borderBottom:'0.5px solid #D3D1C7',
+      padding:'0 20px', height:'54px', display:'flex',
+      alignItems:'center', justifyContent:'space-between' }
+  })
+
+  const logoArea = el('div', { style:{ display:'flex', alignItems:'center', gap:'10px' } },
+    el('div', {
+      style: { width:'32px', height:'32px', borderRadius:'8px', background:'#0F6E56',
+        display:'flex', alignItems:'center', justifyContent:'center',
+        color:'#fff', fontWeight:'700', fontSize:'17px' }
+    }, 'D'),
+    el('span', { style:{ fontWeight:'600', fontSize:'16px' } }, 'DemandFlow'),
+    isAdmin ? tag({color:'#993C1D',bg:'#FAECE7',bd:'#F0997B'}, 'Admin') : null
+  )
+
+  const rightArea = el('div', { style:{ display:'flex', alignItems:'center', gap:'12px' } })
+  if (isAdmin) {
+    rightArea.appendChild(el('button', {
+      style: { padding:'5px 12px', borderRadius:'7px', fontSize:'12px',
+        border:'0.5px solid #D3D1C7', background:'transparent', cursor:'pointer', color:'#5F5E5A' },
+      onClick: () => { panelMode = 'admin'; selectedDemand = null; refreshRight() }
+    }, 'Gerenciar usuários'))
+  }
+  rightArea.appendChild(avatar(currentProfile?.name, 28))
+  rightArea.appendChild(el('span', { style:{ fontSize:'13px', color:'#5F5E5A' } }, currentProfile?.name))
+  rightArea.appendChild(el('button', {
+    style: { padding:'5px 12px', borderRadius:'7px', fontSize:'12px',
+      border:'0.5px solid #D3D1C7', background:'transparent', cursor:'pointer', color:'#5F5E5A' },
+    onClick: async () => {
+      unsubscribers.forEach(u => u())
+      demands = []
+      await signOut(auth)
+    }
+  }, 'Sair'))
+
+  header.appendChild(logoArea)
+  header.appendChild(rightArea)
+
+  // ── Layout dois painéis
+  const layout = el('div', {
+    style: { display:'grid', gridTemplateColumns:'400px 1fr', minHeight:'calc(100vh - 54px)' }
+  })
+
+  // ── Painel esquerdo
+  const leftPanel = el('div', {
+    style: { background:'#fff', borderRight:'0.5px solid #D3D1C7',
+      display:'flex', flexDirection:'column', overflowY:'hidden' }
+  })
+
+  // Stats
+  const statsArea = el('div', { style:{ padding:'12px 16px 0', display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'8px' } })
+
+  function updateStats() {
+    statsArea.innerHTML = ''
+    const stats = [
+      { l:'Abertas',      v: demands.filter(d=>d.status==='open').length,        ...STATUS.open },
+      { l:'Andamento',    v: demands.filter(d=>d.status==='in_progress').length, ...STATUS.in_progress },
+      { l:'Resolvidas',   v: demands.filter(d=>d.status==='resolved').length,    ...STATUS.resolved },
+    ]
+    for (const s of stats) {
+      statsArea.appendChild(el('div', {
+        style: { background:s.bg, borderRadius:'8px', padding:'8px 10px', border:`0.5px solid ${s.bd}` }
+      },
+        el('p', { style:{ fontSize:'10px', color:s.color, marginBottom:'2px', fontWeight:'500' } }, s.l),
+        el('p', { style:{ fontSize:'22px', fontWeight:'600', color:s.color } }, String(s.v))
+      ))
+    }
+  }
+
+  // Tabs
+  const tabsArea = el('div', { style:{ padding:'10px 16px 0', display:'flex', gap:'4px' } })
+  const tabDefs = [
+    { id:'internal',   label:'Internas',  tc:TYPES.internal   },
+    { id:'private',    label:'Minhas',    tc:TYPES.private    },
+    ...(isAdmin ? [{ id:'restricted', label:'Restritas', tc:TYPES.restricted }] : []),
+  ]
+
+  function updateTabs() {
+    tabsArea.innerHTML = ''
+    for (const t of tabDefs) {
+      const count = demands.filter(d => {
+        if (t.id === 'private') return d.type === 'private' && d.createdBy === currentUser.uid
+        return d.type === t.id
+      }).length
+      const active = currentTab === t.id
+      const b = el('button', {
+        style: {
+          padding:'5px 10px', borderRadius:'7px', fontSize:'11px', cursor:'pointer',
+          fontWeight: active ? '600' : '400',
+          border:`0.5px solid ${active ? t.tc.color : '#D3D1C7'}`,
+          background: active ? t.tc.bg : 'transparent',
+          color: active ? t.tc.color : '#888780',
+          display:'flex', alignItems:'center', gap:'4px', transition:'all .15s'
+        },
+        onClick: () => { currentTab = t.id; updateTabs(); updateList() }
+      },
+        t.label,
+        el('span', { style:{ fontSize:'9px', padding:'1px 4px', borderRadius:'8px', background:'rgba(0,0,0,0.08)' } }, String(count))
+      )
+      tabsArea.appendChild(b)
+    }
+  }
+
+  // Search + new btn
+  const searchInput = el('input', { type:'text', placeholder:'Buscar demanda...',
+    style:{ flex:'1', fontSize:'12px' } })
+  searchInput.addEventListener('input', e => { searchText = e.target.value; updateList() })
+
+  const newBtn = el('button', {
+    style: { padding:'6px 14px', borderRadius:'7px', background:'#0F6E56',
+      color:'#fff', border:'none', cursor:'pointer', fontSize:'12px', fontWeight:'600', whiteSpace:'nowrap' },
+    onClick: () => { panelMode = 'new'; selectedDemand = null; refreshRight() }
+  }, '+ Nova')
+
+  const searchRow = el('div', { style:{ padding:'8px 16px', display:'flex', gap:'8px' } },
+    searchInput, newBtn)
+
+  // Lista de demandas
+  const listArea = el('div', { style:{ flex:'1', overflowY:'auto', padding:'0 16px 16px' } })
+
+  function getVisibleDemands() {
+    return demands.filter(d => {
+      if (currentTab === 'internal' && d.type !== 'internal') return false
+      if (currentTab === 'private' && (d.type !== 'private' || d.createdBy !== currentUser.uid)) return false
+      if (currentTab === 'restricted' && d.type !== 'restricted') return false
+      if (searchText) {
+        const q = searchText.toLowerCase()
+        return d.title.toLowerCase().includes(q) || d.description?.toLowerCase().includes(q)
+      }
+      return true
+    })
+  }
+
+  function updateList() {
+    listArea.innerHTML = ''
+    const visible = getVisibleDemands()
+    if (visible.length === 0) {
+      listArea.appendChild(el('p', {
+        style: { textAlign:'center', color:'#B4B2A9', fontSize:'13px', padding:'24px 0' }
+      }, searchText ? 'Nenhuma demanda encontrada.' : 'Nenhuma demanda nesta categoria.'))
+      return
+    }
+    for (const d of visible) {
+      const tc = TYPES[d.type]; const sc = STATUS[d.status]; const pc = PRIORITY[d.priority]
+      const isSelected = selectedDemand?.id === d.id
+      const card = el('div', {
+        style: {
+          padding:'10px 12px', borderRadius:'8px', marginBottom:'5px', cursor:'pointer',
+          border:`0.5px solid ${isSelected ? tc.color : '#D3D1C7'}`,
+          borderLeft:`3px solid ${tc.color}`,
+          background: isSelected ? tc.bg : '#FAFAFA', transition:'all .15s'
+        },
+        onClick: () => { selectedDemand = d; panelMode = 'detail'; updateList(); refreshRight() }
+      },
+        el('div', { style:{ display:'flex', justifyContent:'space-between', marginBottom:'4px', gap:'6px' } },
+          el('div', { style:{ display:'flex', gap:'4px', flexWrap:'wrap' } },
+            tag(tc, `${tc.icon} ${tc.label}`), tag(pc)
+          ),
+          tag(sc)
+        ),
+        el('p', { style:{ fontSize:'13px', fontWeight:'500', marginBottom:'3px', lineHeight:'1.4', color:'#1a1a18' } }, d.title),
+        el('p', { style:{ fontSize:'11px', color:'#888780', marginBottom:'5px', lineHeight:'1.5',
+          overflow:'hidden', display:'-webkit-box', WebkitLineClamp:'2', WebkitBoxOrient:'vertical' } },
+          d.description || ''
+        ),
+        el('div', { style:{ display:'flex', justifyContent:'space-between' } },
+          el('span', { style:{ fontSize:'11px', color:'#B4B2A9' } }, d.createdByName),
+          el('span', { style:{ fontSize:'11px', color:'#B4B2A9' } }, timeAgo(d.createdAt))
+        )
+      )
+      listArea.appendChild(card)
+    }
+  }
+
+  leftPanel.appendChild(statsArea)
+  leftPanel.appendChild(tabsArea)
+  leftPanel.appendChild(searchRow)
+  leftPanel.appendChild(listArea)
+
+  // ── Painel direito
+  const rightPanel = el('div', { style:{ background:'#F5F5F3', overflowY:'auto' } })
+
+  function refreshRight() {
+    rightPanel.innerHTML = ''
+    if (!panelMode) {
+      rightPanel.appendChild(el('div', {
+        style: { height:'100%', minHeight:'400px', display:'flex', flexDirection:'column',
+          alignItems:'center', justifyContent:'center', gap:'8px' }
+      },
+        el('div', { style:{ width:'48px', height:'48px', borderRadius:'12px', background:'#E1F5EE',
+          display:'flex', alignItems:'center', justifyContent:'center', fontSize:'22px' } }, '◎'),
+        el('p', { style:{ fontSize:'14px', color:'#888780' } }, 'Selecione uma demanda para ver os detalhes'),
+        el('p', { style:{ fontSize:'12px', color:'#B4B2A9' } }, 'ou clique em + Nova para criar')
+      ))
+    } else if (panelMode === 'new') {
+      rightPanel.appendChild(renderNewForm(() => { panelMode = null; refreshRight() }, (d) => {
+        panelMode = 'detail'; selectedDemand = d
+        currentTab = d.type === 'private' ? 'private' : d.type === 'restricted' ? 'restricted' : 'internal'
+        updateTabs(); updateList(); refreshRight()
+      }))
+    } else if (panelMode === 'admin') {
+      rightPanel.appendChild(renderAdminPanel(() => { panelMode = null; refreshRight() }))
+    } else if (panelMode === 'detail' && selectedDemand) {
+      const live = demands.find(d => d.id === selectedDemand.id) || selectedDemand
+      rightPanel.appendChild(renderDetail(live, () => { panelMode = null; selectedDemand = null; updateList(); refreshRight() }, (id, status) => {
+        demands = demands.map(d => d.id === id ? {...d, status} : d)
+        updateStats(); updateList(); refreshRight()
+      }))
+    }
+  }
+
+  layout.appendChild(leftPanel)
+  layout.appendChild(rightPanel)
+  wrapper.appendChild(header)
+  wrapper.appendChild(layout)
+
+  // Subscrições Firestore em tempo real
+  function subscribeDemands() {
+    unsubscribers.forEach(u => u())
+    unsubscribers = []
+    const allMap = {}
+
+    const qs = [
+      query(collection(db,'demands'), where('type','==','internal'), orderBy('createdAt','desc')),
+      query(collection(db,'demands'), where('type','==','private'), where('createdBy','==',currentUser.uid), orderBy('createdAt','desc')),
+    ]
+    if (isAdmin) {
+      qs.push(query(collection(db,'demands'), where('type','==','restricted'), orderBy('createdAt','desc')))
+    }
+
+    for (const q of qs) {
+      unsubscribers.push(onSnapshot(q, snap => {
+        snap.docs.forEach(d => { allMap[d.id] = { id: d.id, ...d.data() } })
+        demands = Object.values(allMap).sort((a,b) => {
+          const ta = a.createdAt?.toDate?.()?.getTime() || 0
+          const tb = b.createdAt?.toDate?.()?.getTime() || 0
+          return tb - ta
+        })
+        updateStats(); updateTabs(); updateList()
+      }))
+    }
+  }
+
+  subscribeDemands()
+  updateStats(); updateTabs(); updateList(); refreshRight()
+  return wrapper
+}
+
+// ─── FORMULÁRIO NOVA DEMANDA ──────────────────────────────────
+function renderNewForm(onCancel, onCreated) {
+  const isAdmin = currentProfile?.role === 'admin'
+  let form = { title:'', description:'', type:'internal', priority:'medium' }
+
+  const infoBox = el('div', { style:{ padding:'9px 12px', borderRadius:'7px', fontSize:'12px', marginTop:'4px' } })
+
+  function updateInfo() {
+    const tc = TYPES[form.type]
+    Object.assign(infoBox.style, { background:tc.bg, color:tc.color, border:`0.5px solid ${tc.bd}` })
+    infoBox.textContent = tc.label + ': ' + tc.desc + '.'
+  }
+
+  const titleInput = el('input', { type:'text', placeholder:'Ex: Cliente ABC — Erro ao emitir NF-e', style:{width:'100%'} })
+  titleInput.addEventListener('input', e => { form.title = e.target.value })
+
+  const descInput = el('textarea', { placeholder:'Descreva o problema com detalhes...', rows:'5', style:{width:'100%', resize:'vertical'} })
+  descInput.addEventListener('input', e => { form.description = e.target.value })
+
+  const typeSelect = el('select', { style:{width:'100%'} })
+  typeSelect.innerHTML = `
+    <option value="internal">● Interna — todos veem</option>
+    <option value="private">◆ Privada — só eu vejo</option>
+    ${isAdmin ? '<option value="restricted">▲ Restrita — só admins</option>' : ''}
+  `
+  typeSelect.addEventListener('change', e => { form.type = e.target.value; updateInfo() })
+
+  const prioSelect = el('select', { style:{width:'100%'} })
+  prioSelect.innerHTML = `
+    <option value="high">Alta</option>
+    <option value="medium" selected>Média</option>
+    <option value="low">Baixa</option>
+  `
+  prioSelect.addEventListener('change', e => { form.priority = e.target.value })
+
+  const createBtn = el('button', {
+    style: { padding:'8px 18px', borderRadius:'8px', background:'#0F6E56',
+      color:'#fff', border:'none', cursor:'pointer', fontSize:'13px', fontWeight:'600' },
+    onClick: async () => {
+      if (!form.title.trim()) return
+      createBtn.textContent = 'Criando...'
+      createBtn.disabled = true
+      try {
+        const ref = await addDoc(collection(db,'demands'), {
+          ...form, status:'open',
+          createdBy: currentUser.uid,
+          createdByName: currentProfile.name,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        })
+        onCreated({ id: ref.id, ...form, status:'open', createdByName: currentProfile.name, createdAt: new Date() })
+      } catch (err) {
+        console.error(err)
+        createBtn.textContent = 'Criar demanda'
+        createBtn.disabled = false
+      }
+    }
+  }, 'Criar demanda')
+
+  updateInfo()
+
+  return el('div', { style:{ padding:'24px' } },
+    el('div', { style:{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'20px' } },
+      el('h2', { style:{ fontSize:'17px', fontWeight:'600' } }, 'Nova demanda'),
+      el('button', {
+        style:{ background:'none', border:'none', cursor:'pointer', fontSize:'22px', color:'#888780', lineHeight:'1' },
+        onClick: onCancel
+      }, '×')
+    ),
+    el('div', {
+      style:{ background:'#fff', border:'0.5px solid #D3D1C7', borderRadius:'12px',
+        padding:'20px', display:'flex', flexDirection:'column', gap:'14px' }
+    },
+      el('div', {},
+        el('label', { style:{ fontSize:'12px', color:'#5F5E5A', display:'block', marginBottom:'5px', fontWeight:'500' } }, 'Título *'),
+        titleInput
+      ),
+      el('div', {},
+        el('label', { style:{ fontSize:'12px', color:'#5F5E5A', display:'block', marginBottom:'5px', fontWeight:'500' } }, 'Descrição'),
+        descInput
+      ),
+      el('div', { style:{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px' } },
+        el('div', {},
+          el('label', { style:{ fontSize:'12px', color:'#5F5E5A', display:'block', marginBottom:'5px', fontWeight:'500' } }, 'Visibilidade'),
+          typeSelect
+        ),
+        el('div', {},
+          el('label', { style:{ fontSize:'12px', color:'#5F5E5A', display:'block', marginBottom:'5px', fontWeight:'500' } }, 'Prioridade'),
+          prioSelect
+        )
+      ),
+      infoBox,
+      el('div', { style:{ display:'flex', justifyContent:'flex-end', gap:'8px' } },
+        el('button', {
+          style:{ padding:'8px 14px', borderRadius:'8px', fontSize:'13px', border:'0.5px solid #D3D1C7',
+            background:'transparent', cursor:'pointer', color:'#5F5E5A' },
+          onClick: onCancel
+        }, 'Cancelar'),
+        createBtn
+      )
+    )
+  )
+}
+
+// ─── DETALHE DA DEMANDA ───────────────────────────────────────
+function renderDetail(demand, onClose, onStatusChange) {
+  const isAdmin = currentProfile?.role === 'admin'
+  const isOwner = demand.createdBy === currentUser.uid
+  const canManage = isAdmin || isOwner
+  const tc = TYPES[demand.type]; const sc = STATUS[demand.status]; const pc = PRIORITY[demand.priority]
+
+  const commentsArea = el('div', { style:{ display:'flex', flexDirection:'column', gap:'10px', marginBottom:'14px' } })
+  const commentCount = el('span', {}, '0')
+  let commentInput
+
+  // Carrega comentários em tempo real
+  const commentsQuery = query(collection(db,'demands',demand.id,'comments'), orderBy('createdAt','asc'))
+  const unsub = onSnapshot(commentsQuery, snap => {
+    commentsArea.innerHTML = ''
+    commentCount.textContent = String(snap.docs.length)
+    if (snap.docs.length === 0) {
+      commentsArea.appendChild(el('p', { style:{ fontSize:'12px', color:'#B4B2A9', textAlign:'center', padding:'12px 0' } }, 'Nenhum comentário ainda.'))
+    }
+    for (const d of snap.docs) {
+      const c = { id: d.id, ...d.data() }
+      commentsArea.appendChild(
+        el('div', { style:{ display:'flex', gap:'9px', alignItems:'flex-start' } },
+          avatar(c.authorName, 28),
+          el('div', { style:{ flex:'1', background:'#F5F5F3', borderRadius:'8px', padding:'9px 12px' } },
+            el('div', { style:{ display:'flex', justifyContent:'space-between', marginBottom:'4px' } },
+              el('span', { style:{ fontSize:'12px', fontWeight:'600' } }, c.authorName),
+              el('span', { style:{ fontSize:'10px', color:'#B4B2A9' } }, timeAgo(c.createdAt))
+            ),
+            el('p', { style:{ fontSize:'12px', color:'#5F5E5A', lineHeight:'1.6' } }, c.text)
+          )
+        )
+      )
+    }
+  })
+  unsubscribers.push(unsub)
+
+  async function sendComment() {
+    const text = commentInput.value.trim()
+    if (!text) return
+    commentInput.value = ''
+    await addDoc(collection(db,'demands',demand.id,'comments'), {
+      text, authorName: currentProfile.name, authorId: currentUser.uid, createdAt: serverTimestamp()
+    })
+  }
+
+  commentInput = el('input', { type:'text', placeholder:'Comentar... (Enter para enviar)', style:{ flex:'1', fontSize:'12px' } })
+  commentInput.addEventListener('keydown', e => { if (e.key === 'Enter') sendComment() })
+
+  const sendBtn = el('button', {
+    style: { padding:'6px 12px', borderRadius:'7px', background:'#0F6E56', color:'#fff',
+      border:'none', cursor:'pointer', fontSize:'12px', fontWeight:'600', flexShrink:'0' },
+    onClick: sendComment
+  }, 'Enviar')
+
+  // Botões de status
+  const statusBtns = el('div', { style:{ display:'flex', gap:'7px' } })
+  for (const [k, v] of Object.entries(STATUS)) {
+    const active = demand.status === k
+    const b = el('button', {
+      style: {
+        padding:'5px 12px', borderRadius:'6px', fontSize:'11px', cursor:'pointer',
+        fontWeight: active ? '600' : '400', transition:'all .15s',
+        border:`0.5px solid ${active ? v.color : '#D3D1C7'}`,
+        background: active ? v.bg : 'transparent',
+        color: active ? v.color : '#888780'
+      },
+      onClick: async () => {
+        await updateDoc(doc(db,'demands',demand.id), { status: k, updatedAt: serverTimestamp() })
+        onStatusChange(demand.id, k)
+      }
+    }, v.label)
+    statusBtns.appendChild(b)
+  }
+
+  return el('div', { style:{ padding:'24px', overflowY:'auto' } },
+    el('div', { style:{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'16px' } },
+      el('div', { style:{ flex:'1' } },
+        el('div', { style:{ display:'flex', gap:'6px', flexWrap:'wrap', marginBottom:'8px' } },
+          tag(tc, `${tc.icon} ${tc.label}`), tag(sc), tag(pc)
+        ),
+        el('h2', { style:{ fontSize:'18px', fontWeight:'600', marginBottom:'5px', lineHeight:'1.4' } }, demand.title),
+        el('p', { style:{ fontSize:'12px', color:'#888780' } }, `Por ${demand.createdByName} · ${timeAgo(demand.createdAt)}`)
+      ),
+      el('button', {
+        style:{ background:'none', border:'none', cursor:'pointer', fontSize:'22px', color:'#888780', marginLeft:'12px', lineHeight:'1', flexShrink:'0' },
+        onClick: onClose
+      }, '×')
+    ),
+    el('div', { style:{ background:'#fff', border:'0.5px solid #D3D1C7', borderRadius:'10px', padding:'16px', marginBottom:'12px' } },
+      el('p', { style:{ fontSize:'13px', color:'#5F5E5A', lineHeight:'1.8' } }, demand.description || 'Sem descrição detalhada.')
+    ),
+    canManage ? el('div', { style:{ background:'#fff', border:'0.5px solid #D3D1C7', borderRadius:'10px', padding:'14px 16px', marginBottom:'12px' } },
+      el('p', { style:{ fontSize:'11px', color:'#888780', marginBottom:'9px', fontWeight:'500' } }, 'ALTERAR STATUS'),
+      statusBtns
+    ) : null,
+    el('div', { style:{ background:'#fff', border:'0.5px solid #D3D1C7', borderRadius:'10px', padding:'16px' } },
+      el('p', { style:{ fontSize:'13px', fontWeight:'600', marginBottom:'14px' } },
+        'Comentários (', commentCount, ')'
+      ),
+      commentsArea,
+      el('div', { style:{ borderTop:'0.5px solid #D3D1C7', paddingTop:'12px' } },
+        el('div', { style:{ display:'flex', gap:'9px', alignItems:'center' } },
+          avatar(currentProfile?.name, 28),
+          commentInput,
+          sendBtn
+        )
+      )
+    )
+  )
+}
+
+// ─── PAINEL ADMIN ─────────────────────────────────────────────
+function renderAdminPanel(onClose) {
+  const usersList = el('div', { style:{ display:'flex', flexDirection:'column', gap:'8px' } })
+  const msgEl = el('span', { style:{ fontSize:'12px' } })
+
+  getDocs(collection(db,'users')).then(snap => {
+    for (const d of snap.docs) {
+      const u = d.data()
+      const roleTag = tag(
+        u.role === 'admin' ? {color:'#993C1D',bg:'#FAECE7',bd:'#F0997B'} : {color:'#0F6E56',bg:'#E1F5EE',bd:'#5DCAA5'},
+        u.role === 'admin' ? 'Admin' : 'Colaborador'
+      )
+      usersList.appendChild(
+        el('div', { style:{ display:'flex', alignItems:'center', gap:'12px', padding:'10px 0', borderBottom:'0.5px solid #F1EFE8' } },
+          avatar(u.name, 34),
+          el('div', { style:{ flex:'1' } },
+            el('p', { style:{ fontSize:'13px', fontWeight:'500', marginBottom:'2px' } }, u.name),
+            el('p', { style:{ fontSize:'12px', color:'#888780' } }, u.email)
+          ),
+          roleTag
+        )
+      )
+    }
+  })
+
+  let nf = { name:'', email:'', password:'', role:'collaborator' }
+
+  const nameI = el('input', { placeholder:'Nome completo' }); nameI.addEventListener('input', e => nf.name = e.target.value)
+  const emailI = el('input', { type:'email', placeholder:'E-mail' }); emailI.addEventListener('input', e => nf.email = e.target.value)
+  const passI = el('input', { type:'password', placeholder:'Senha inicial' }); passI.addEventListener('input', e => nf.password = e.target.value)
+  const roleS = el('select'); roleS.innerHTML = '<option value="collaborator">Colaborador</option><option value="admin">Administrador</option>'
+  roleS.addEventListener('change', e => nf.role = e.target.value)
+
+  const createBtn = el('button', {
+    style:{ padding:'6px 14px', borderRadius:'7px', background:'#0F6E56', color:'#fff', border:'none', cursor:'pointer', fontSize:'12px', fontWeight:'600' },
+    onClick: async () => {
+      if (!nf.name || !nf.email || !nf.password) return
+      createBtn.textContent = 'Criando...'
+      createBtn.disabled = true
+      try {
+        const cred = await createUserWithEmailAndPassword(auth, nf.email, nf.password)
+        await setDoc(doc(db,'users',cred.user.uid), { name:nf.name, email:nf.email, role:nf.role, createdAt: new Date().toISOString() })
+        msgEl.textContent = 'Usuário criado com sucesso!'
+        msgEl.style.color = '#0F6E56'
+        const roleTag = tag(
+          nf.role === 'admin' ? {color:'#993C1D',bg:'#FAECE7',bd:'#F0997B'} : {color:'#0F6E56',bg:'#E1F5EE',bd:'#5DCAA5'},
+          nf.role === 'admin' ? 'Admin' : 'Colaborador'
+        )
+        usersList.appendChild(
+          el('div', { style:{ display:'flex', alignItems:'center', gap:'12px', padding:'10px 0', borderBottom:'0.5px solid #F1EFE8' } },
+            avatar(nf.name, 34),
+            el('div', { style:{ flex:'1' } },
+              el('p', { style:{ fontSize:'13px', fontWeight:'500', marginBottom:'2px' } }, nf.name),
+              el('p', { style:{ fontSize:'12px', color:'#888780' } }, nf.email)
+            ),
+            roleTag
+          )
+        )
+        nameI.value = ''; emailI.value = ''; passI.value = ''
+        nf = { name:'', email:'', password:'', role:'collaborator' }
+      } catch (err) {
+        msgEl.textContent = 'Erro: ' + err.message
+        msgEl.style.color = '#A32D2D'
+      } finally {
+        createBtn.textContent = 'Criar usuário'
+        createBtn.disabled = false
+      }
+    }
+  }, 'Criar usuário')
+
+  return el('div', { style:{ padding:'24px' } },
+    el('div', { style:{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'20px' } },
+      el('h2', { style:{ fontSize:'17px', fontWeight:'600' } }, 'Painel Administrativo'),
+      el('button', { style:{ background:'none', border:'none', cursor:'pointer', fontSize:'22px', color:'#888780', lineHeight:'1' }, onClick:onClose }, '×')
+    ),
+    el('div', { style:{ background:'#fff', border:'0.5px solid #D3D1C7', borderRadius:'12px', padding:'18px', marginBottom:'14px' } },
+      el('p', { style:{ fontSize:'13px', fontWeight:'600', marginBottom:'14px' } }, 'Adicionar novo usuário'),
+      el('div', { style:{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px', marginBottom:'12px' } },
+        nameI, emailI, passI, roleS
+      ),
+      el('div', { style:{ display:'flex', alignItems:'center', gap:'10px' } },
+        createBtn, msgEl
+      )
+    ),
+    el('div', { style:{ background:'#fff', border:'0.5px solid #D3D1C7', borderRadius:'12px', padding:'18px' } },
+      el('p', { style:{ fontSize:'13px', fontWeight:'600', marginBottom:'14px' } }, 'Usuários cadastrados'),
+      usersList
+    )
+  )
+}
+
+// ─── INICIALIZAÇÃO ────────────────────────────────────────────
+onAuthStateChanged(auth, async (firebaseUser) => {
+  if (firebaseUser) {
+    const snap = await getDoc(doc(db,'users',firebaseUser.uid))
+    if (snap.exists()) {
+      currentUser = firebaseUser
+      currentProfile = snap.data()
+    } else {
+      currentUser = null
+      currentProfile = null
+    }
+  } else {
+    currentUser = null
+    currentProfile = null
+  }
+  render()
+})
+</script>
+</body>
+</html>

@@ -373,7 +373,7 @@ function buildSidebar(){
   const isA=CP?.role==='admin'
   const sb=el('div','sb')
   const logo=el('div','sb-logo')
-  ap(logo,ap(el('div','sb-logo-icon'),'D'),ap(el('div',''),ap(el('div','sb-logo-text'),'DemandFlow'),ap(el('div','sb-logo-sub'),'Central da Equipe · v4.3 ✦')))
+  ap(logo,ap(el('div','sb-logo-icon'),'D'),ap(el('div',''),ap(el('div','sb-logo-text'),'DemandFlow'),ap(el('div','sb-logo-sub'),'Central da Equipe · v4.4 ✦')))
   sb.appendChild(logo)
   const nav=el('div','sb-nav')
   ap(nav,ap(el('div','sb-sec'),'Menu'))
@@ -620,9 +620,14 @@ function buildUpdates(){
   const h=el('div','flex aic jcsb mb20')
   ap(h,ap(el('h2','',{fontSize:'16px',fontWeight:'700'}),'Atualizações do Sistema'))
   if(isA){
-    const nb=ap(el('button','btn btn-p btn-sm'),'+ Nova atualização')
-    nb.onclick=()=>openUpdateModal()
-    h.appendChild(nb)
+    const btns=el('div','flex g8')
+    const nb=ap(el('button','btn btn-p btn-sm'),'+ Nova atualização');nb.onclick=()=>openUpdateModal()
+    const expBtn=ap(el('button','btn btn-s btn-sm'),'📥 Exportar modelo');expBtn.onclick=exportUpdateTemplate
+    const impLabel=el('label','btn btn-s btn-sm',{cursor:'pointer'});impLabel.textContent='📤 Importar planilha'
+    const impInput=el('input','');impInput.type='file';impInput.accept='.xlsx,.xls';impInput.style.display='none'
+    impInput.onchange=e=>{if(e.target.files[0])importUpdateFile(e.target.files[0]);impInput.value=''}
+    impLabel.appendChild(impInput)
+    ap(btns,nb,expBtn,impLabel);h.appendChild(btns)
   }
   w.appendChild(h)
 
@@ -723,6 +728,115 @@ function buildUpdates(){
   return w
 }
 
+function exportUpdateTemplate(){
+  if(!window.XLSX){alert('Aguarde o carregamento da biblioteca Excel.');return}
+  const XLSX=window.XLSX
+  const wb=XLSX.utils.book_new()
+
+  // Aba principal com cabeçalhos e exemplo
+  const headers=['Título*','Tipo de Processo','Nome da Tela','Versão','Tipo de Desenvolvimento','Módulo','Descrição']
+  const example=['Manutenção de custo via planilha Excel','Comercial','Pedido de compra','2.4.1','Implementações','Módulo de custo','Importação de planilha Excel para manutenção em lote.']
+  const data=[headers,example,...Array(10).fill(headers.map(()=>''))]
+  const ws=XLSX.utils.aoa_to_sheet(data)
+
+  // Largura das colunas
+  ws['!cols']=[{wch:40},{wch:20},{wch:25},{wch:12},{wch:28},{wch:22},{wch:50}]
+
+  // Aba de opções válidas
+  const optsData=[
+    ['Campo','Opções válidas'],
+    ['Tipo de Processo',...Object.values(PROC_TIPO).map(v=>v.l)],
+    ['Tipo de Desenvolvimento',...Object.values(DEV_CAT).map(v=>v.l)],
+    ['Módulo',...Object.values(DEV_MOD).map(v=>v.l)],
+  ]
+  // Transpor para colunas separadas
+  const maxLen=Math.max(...optsData.map(r=>r.length))
+  const opts=optsData.map(r=>[...r,...Array(maxLen-r.length).fill('')])
+  const ws2=XLSX.utils.aoa_to_sheet(opts)
+  ws2['!cols']=[{wch:25},...Array(10).fill({wch:22})]
+
+  XLSX.utils.book_append_sheet(wb,ws,'Atualizações')
+  XLSX.utils.book_append_sheet(wb,ws2,'Opções válidas')
+  XLSX.writeFile(wb,'modelo_atualizacoes_jsr.xlsx')
+}
+
+function importUpdateFile(file){
+  if(!window.XLSX){alert('Aguarde o carregamento da biblioteca Excel.');return}
+  const XLSX=window.XLSX
+  const reader=new FileReader()
+  reader.onload=async e=>{
+    try{
+      const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'})
+      const ws=wb.Sheets[wb.SheetNames[0]]
+      const rows=XLSX.utils.sheet_to_json(ws,{header:0,defval:''})
+
+      // Mapear nomes de colunas para chaves internas
+      const mapProc=Object.fromEntries(Object.entries(PROC_TIPO).map(([k,v])=>[v.l.toLowerCase(),k]))
+      const mapCat=Object.fromEntries(Object.entries(DEV_CAT).map(([k,v])=>[v.l.toLowerCase(),k]))
+      const mapMod=Object.fromEntries(Object.entries(DEV_MOD).map(([k,v])=>[v.l.toLowerCase(),k]))
+
+      const parsed=rows.map(r=>({
+        title:(r['Título*']||r['Título']||'').trim(),
+        procTipo:mapProc[(r['Tipo de Processo']||'').trim().toLowerCase()]||'',
+        screenName:(r['Nome da Tela']||'').trim(),
+        version:(r['Versão']||'').trim(),
+        devCat:mapCat[(r['Tipo de Desenvolvimento']||'').trim().toLowerCase()]||'',
+        devMod:mapMod[(r['Módulo']||'').trim().toLowerCase()]||'',
+        description:(r['Descrição']||'').trim(),
+      })).filter(r=>r.title)
+
+      if(!parsed.length){alert('Nenhuma linha com título encontrada na planilha.');return}
+
+      // Modal de preview
+      const ov=el('div','overlay')
+      const mo=el('div','modal',{maxWidth:'700px'})
+      const mh=ap(el('div','modal-h'),ap(el('div','modal-t'),'📤 Importar '+parsed.length+' atualização'+(parsed.length!==1?'s':'')))
+      const x=ap(el('button','modal-x'),'×');x.onclick=()=>ov.remove();mh.appendChild(x)
+
+      const mb=el('div','modal-b')
+      ap(mb,ap(el('p','f12 tc2 mb12'),'Revise os dados antes de importar. Serão criadas '+parsed.length+' atualização'+(parsed.length!==1?'s':'')+'no sistema.'))
+
+      const tbl=el('table','',{width:'100%',borderCollapse:'collapse',fontSize:'11px'})
+      const thead=el('thead')
+      const hr=el('tr')
+      ;['Título','Processo','Tela','Versão','Tipo Dev','Módulo'].forEach(h2=>{ap(hr,ap(el('th','',{background:'#1E293B',color:'#fff',padding:'6px 8px',textAlign:'left',fontWeight:'600'}),h2))})
+      thead.appendChild(hr);tbl.appendChild(thead)
+      const tbody=el('tbody')
+      parsed.forEach((r,i)=>{
+        const tr=el('tr','',{background:i%2===0?'#fff':'#F8FAFC'})
+        const td=t=>ap(el('td','',{padding:'5px 8px',borderBottom:'1px solid #E2E8F0',fontSize:'11px'}),t||'—')
+        const pt=r.procTipo?PROC_TIPO[r.procTipo]?.l||r.procTipo:''
+        const dc=r.devCat?DEV_CAT[r.devCat]?.l||r.devCat:''
+        const dm=r.devMod?DEV_MOD[r.devMod]?.l||r.devMod:''
+        ap(tr,td(r.title),td(pt),td(r.screenName),td(r.version),td(dc),td(dm))
+        tbody.appendChild(tr)
+      })
+      tbl.appendChild(tbody);mb.appendChild(tbl)
+
+      const mf=el('div','modal-f')
+      const can=ap(el('button','btn btn-s'),'Cancelar');can.onclick=()=>ov.remove()
+      const imp=ap(el('button','btn btn-p'),'✓ Importar tudo')
+      imp.onclick=async()=>{
+        imp.disabled=true;imp.textContent='Importando...'
+        let ok=0;let err=0
+        for(const r of parsed){
+          try{
+            await addDoc(collection(db,'updates'),{
+              ...r,type:'none',url:'',imageUrl:'',
+              createdBy:CU.uid,createdByName:CP.name,
+              createdAt:serverTimestamp(),
+              viewedBy:[{uid:CU.uid,name:CP.name,viewedAt:new Date().toISOString()}]
+            });ok++
+          }catch{err++}
+        }
+        ov.remove()
+        alert('✓ '+ok+' atualização'+(ok!==1?'s':'')+' importada'+(ok!==1?'s':'')+' com sucesso!'+(err?' ('+err+' erro'+(err!==1?'s':'')+')':''))
+      }
+      ap(mf,can,imp);ap(mo,mh,mb,mf);ov.appendChild(mo);document.body.appendChild(ov)
+    }catch(e){alert('Erro ao ler planilha: '+e.message)}
+  }
+  reader.readAsArrayBuffer(file)
+}
 function openUpdateModal(){
   let f={title:'',procTipo:'',screenName:'',version:'',type:'none',url:'',description:'',devCat:'',devMod:''}
   let selectedVideo=null,selectedImage=null
@@ -1234,5 +1348,6 @@ onAuthStateChanged(auth,async fu=>{
   else{unsubs.forEach(u=>u());CU=CP=null;demands=notices=prospects=updates=[];renderLogin()}
 })
 </script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </body>
 </html>

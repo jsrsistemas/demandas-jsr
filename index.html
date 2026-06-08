@@ -373,7 +373,7 @@ function buildSidebar(){
   const isA=CP?.role==='admin'
   const sb=el('div','sb')
   const logo=el('div','sb-logo')
-  ap(logo,ap(el('div','sb-logo-icon'),'D'),ap(el('div',''),ap(el('div','sb-logo-text'),'DemandFlow'),ap(el('div','sb-logo-sub'),'Central da Equipe · v4.6 ✦')))
+  ap(logo,ap(el('div','sb-logo-icon'),'D'),ap(el('div',''),ap(el('div','sb-logo-text'),'DemandFlow'),ap(el('div','sb-logo-sub'),'Central da Equipe · v4.8 ✦')))
   sb.appendChild(logo)
   const nav=el('div','sb-nav')
   ap(nav,ap(el('div','sb-sec'),'Menu'))
@@ -668,12 +668,10 @@ function buildUpdates(){
   const tbody=el('tbody');tbody.id='updates-tbody'
   tbl.appendChild(tbody);tblWrap.appendChild(tbl);w.appendChild(tblWrap)
 
-  renderUpdateRows()
-  return w
-
-  function renderUpdateRows(){
-    const tb=document.getElementById('updates-tbody');if(!tb)return
-    // Keep any new-row inputs that might be present
+  function renderUpdateRows(tb){
+    if(!tb)tb=document.getElementById('updates-tbody')
+    if(!tb)return
+    // Remove existing data rows (keep new-row if present)
     const newRows=Array.from(tb.querySelectorAll('tr[data-new]'))
     tb.innerHTML=''
     newRows.forEach(r=>tb.appendChild(r))
@@ -774,10 +772,14 @@ function buildUpdates(){
     })
   }
 
+  renderUpdateRows(tbody)
+  return w
+
   function addInlineRow(){
     const tb=document.getElementById('updates-tbody');if(!tb)return
-    // Remove row if already exists
-    const existing=tb.querySelector('tr[data-new]');if(existing)existing.remove()
+    // Se já tem linha nova, só rola até ela
+    const existing=tb.querySelector('tr[data-new]')
+    if(existing){existing.querySelector('input')?.focus();existing.scrollIntoView({behavior:'smooth',block:'center'});return}
 
     let nf={title:'',procTipo:'',screenName:'',version:'',devCat:'',devMod:'',description:''}
     const tr=el('tr','',{background:'#EFF6FF'});tr.setAttribute('data-new','1')
@@ -822,17 +824,22 @@ function buildUpdates(){
     const cancelBtn=ap(el('button','btn btn-s btn-xs'),'×')
     saveBtn.onclick=async()=>{
       if(!nf.title.trim()){titleTd.querySelector('input').focus();titleTd.querySelector('input').style.borderColor='var(--red)';return}
-      saveBtn.disabled=true;saveBtn.textContent='...'
+      saveBtn.disabled=true;saveBtn.textContent='Salvando...'
       try{
-        await addDoc(collection(db,'updates'),{
+        const ref=await addDoc(collection(db,'updates'),{
           ...nf,type:'none',url:'',imageUrl:'',
           createdBy:CU.uid,createdByName:CP.name,
           createdAt:serverTimestamp(),
           viewedBy:[{uid:CU.uid,name:CP.name,viewedAt:new Date().toISOString()}]
         })
+        // Adiciona localmente e re-renderiza imediatamente
+        updates.unshift({id:ref.id,...nf,type:'none',url:'',imageUrl:'',
+          createdByName:CP.name,createdAt:{toDate:()=>new Date()},
+          viewedBy:[{uid:CU.uid,name:CP.name}]})
         tr.remove()
+        renderUpdateRows(document.getElementById('updates-tbody'))
       }catch(e){
-        alert('Erro ao salvar: '+e.message+'\n\nVerifique se as regras do Firestore foram atualizadas.')
+        alert('Erro ao salvar: '+e.message)
         saveBtn.disabled=false;saveBtn.textContent='Salvar'
       }
     }

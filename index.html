@@ -750,14 +750,99 @@ function buildProspects(){
   kbWrap.appendChild(kb);w.appendChild(kbWrap);return w
 }
 function openProspectReport(){
-  const now=new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'})
-  const total=prospects.length
-  const ativos=prospects.filter(p=>!['fechado','nao_fechado'].includes(pstN(p.status))).length
-  const fechados=prospects.filter(p=>pstN(p.status)==='fechado').length
-  const naoFechados=prospects.filter(p=>pstN(p.status)==='nao_fechado').length
-  const totalValor=prospects.filter(p=>p.value).reduce((s,p)=>s+Number(p.value),0)
+  // Modal de opções antes de gerar
+  const ov=el('div','overlay');const mo=el('div','modal')
+  const mh=ap(el('div','modal-h'),ap(el('div','modal-t'),'📊 Gerar Relatório de Prospects'))
+  const x=ap(el('button','modal-x'),'×');x.onclick=()=>ov.remove();mh.appendChild(x)
+  const mb=el('div','modal-b')
 
-  const rows=prospects.map(p=>{
+  let sortBy='status' // default
+
+  ap(mb,ap(el('p','f13 tc2 mb12'),'Escolha como ordenar os prospects no relatório:'))
+
+  const opts=[
+    {v:'status',l:'📋 Por status',d:'Agrupa por etapa do pipeline (1° Contato → Fechado)'},
+    {v:'name',l:'🔤 Por nome A-Z',d:'Ordem alfabética pelo nome do contato'},
+    {v:'company',l:'🏢 Por empresa A-Z',d:'Ordem alfabética pelo nome da empresa'},
+    {v:'value',l:'💰 Por valor (maior primeiro)',d:'Prospects com maior valor estimado aparecem primeiro'},
+    {v:'date',l:'🕐 Por data (mais recente)',d:'Mais recentes no topo'},
+  ]
+
+  const optEls=opts.map(o=>{
+    const wrap=el('div','',{border:'1px solid var(--brd)',borderRadius:'9px',padding:'10px 14px',marginBottom:'8px',cursor:'pointer',transition:'all .15s'})
+    const top=ap(el('div','flex aic g8'),ap(el('input',''),{type:'radio',name:'sort',value:o.v,style:'width:auto;flex-shrink:0'}))
+    top.children[0].id='sort-'+o.v;if(o.v==='status')top.children[0].checked=true
+    top.children[0].onchange=()=>{sortBy=o.v;optEls.forEach(e=>Object.assign(e.style,{borderColor:'var(--brd)',background:'transparent'}));Object.assign(wrap.style,{borderColor:'var(--blue)',background:'var(--bluel)'})}
+    ap(top,ap(el('label','fw6 f13',{cursor:'pointer',flex:'1'}),o.l));wrap.appendChild(top)
+    ap(wrap,ap(el('p','f11 tc3',{marginLeft:'24px',marginTop:'3px'}),o.d))
+    wrap.onclick=()=>{top.children[0].checked=true;top.children[0].dispatchEvent(new Event('change'))}
+    if(o.v==='status')Object.assign(wrap.style,{borderColor:'var(--blue)',background:'var(--bluel)'})
+    return wrap
+  })
+  optEls.forEach(e=>mb.appendChild(e))
+
+  // Filtro por status
+  ap(mb,ap(el('div','f12 fw6 tc2',{marginTop:'14px',marginBottom:'6px'}),'Filtrar por status (opcional):'))
+  const filterWrap=el('div','flex g6',{flexWrap:'wrap'})
+  let filterStatus=new Set(['all'])
+  const allBtn=ap(el('button','btn btn-p btn-sm'),'Todos')
+  allBtn.onclick=()=>{filterStatus=new Set(['all']);updateFilterBtns()}
+  filterWrap.appendChild(allBtn)
+  const statusBtns=Object.entries(PST).map(([k,v])=>{
+    const b=ap(el('button','btn btn-s btn-sm',{borderColor:v.bd,color:v.c}),v.l)
+    b.onclick=()=>{filterStatus.delete('all');if(filterStatus.has(k))filterStatus.delete(k);else filterStatus.add(k);if(filterStatus.size===0)filterStatus.add('all');updateFilterBtns()}
+    return{k,v,b}
+  })
+  statusBtns.forEach(x=>filterWrap.appendChild(x.b))
+  mb.appendChild(filterWrap)
+  function updateFilterBtns(){
+    const isAll=filterStatus.has('all')
+    allBtn.className='btn btn-sm '+(isAll?'btn-p':'btn-s')
+    statusBtns.forEach(({k,v,b})=>{const on=!isAll&&filterStatus.has(k);b.style.background=on?v.bg:'transparent';b.style.color=on?v.c:'var(--t2)';b.style.borderColor=on?v.c:'var(--brd)';b.style.fontWeight=on?'600':'400'})
+  }
+
+  const mf=el('div','modal-f')
+  const can=ap(el('button','btn btn-s'),'Cancelar');can.onclick=()=>ov.remove()
+  const gen=ap(el('button','btn btn-p'),'Gerar relatório →')
+  gen.onclick=()=>{ov.remove();generateReport(sortBy,filterStatus)}
+  ap(mf,can,gen);ap(mo,mh,mb,mf);ov.appendChild(mo);document.body.appendChild(ov)
+}
+
+function generateReport(sortBy,filterStatus){
+  // Filtrar
+  let data=[...prospects]
+  if(!filterStatus.has('all')&&filterStatus.size>0){
+    data=data.filter(p=>filterStatus.has(pstN(p.status)))
+  }
+  // Ordenar
+  const pstOrder=Object.keys(PST)
+  if(sortBy==='status')data.sort((a,b)=>pstOrder.indexOf(pstN(a.status))-pstOrder.indexOf(pstN(b.status)))
+  else if(sortBy==='name')data.sort((a,b)=>(a.name||'').localeCompare(b.name||'','pt-BR'))
+  else if(sortBy==='company')data.sort((a,b)=>(a.companyName||a.name||'').localeCompare(b.companyName||b.name||'','pt-BR'))
+  else if(sortBy==='value')data.sort((a,b)=>(Number(b.value)||0)-(Number(a.value)||0))
+  else if(sortBy==='date')data.sort((a,b)=>{const ta=a.createdAt?.toDate?.()?.getTime()||0;const tb=b.createdAt?.toDate?.()?.getTime()||0;return tb-ta})
+
+  const now=new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'})
+  const total=data.length
+  const ativos=data.filter(p=>!['fechado','nao_fechado'].includes(pstN(p.status))).length
+  const fechados=data.filter(p=>pstN(p.status)==='fechado').length
+  const totalValor=data.filter(p=>p.value).reduce((s,p)=>s+Number(p.value),0)
+  const sortLabels={status:'Status do pipeline',name:'Nome A-Z',company:'Empresa A-Z',value:'Valor (maior primeiro)',date:'Data (mais recente)'}
+
+  // Agrupar por status se ordenação for por status
+  let bodyHTML=''
+  if(sortBy==='status'){
+    Object.entries(PST).forEach(([k,v])=>{
+      const group=data.filter(p=>pstN(p.status)===k)
+      if(!group.length)return
+      bodyHTML+=`<tr><td colspan="10" style="background:${v.bg};color:${v.c};font-weight:700;font-size:12px;padding:8px 10px;border-bottom:2px solid ${v.bd}">${v.l} — ${group.length} prospect${group.length!==1?'s':''}</td></tr>`
+      bodyHTML+=group.map(p=>buildRow(p)).join('')
+    })
+  } else {
+    bodyHTML=data.map(p=>buildRow(p)).join('')
+  }
+
+  function buildRow(p){
     const st=PST[pstN(p.status)]||PST.primeiro_contato
     const sc=PSTC[p.statusContato]
     return `<tr>
@@ -765,46 +850,45 @@ function openProspectReport(){
       <td>${p.companyName||'—'}</td>
       <td>${p.contact||'—'}</td>
       <td>${p.segment||'—'}</td>
-      <td>${p.howFound||'—'}</td>
-      <td>${p.indicatedBy||'—'}</td>
-      <td><span style="background:${st.bg};color:${st.c};border:1px solid ${st.bd};padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap">${st.l}</span></td>
-      <td>${sc?`<span style="background:${sc.bg};color:${sc.c};border:1px solid ${sc.bd};padding:2px 8px;border-radius:4px;font-size:11px">${sc.l}</span>`:'—'}</td>
-      <td>${p.qtdEmpresas?p.qtdEmpresas+' emp.':'—'}</td>
-      <td style="font-weight:600;color:#059669">${p.value?fmtMoney(p.value):'—'}</td>
-      <td style="max-width:200px;font-size:11px;color:#64748B">${p.notes||'—'}</td>
+      <td>${p.howFound||p.indicatedBy||'—'}</td>
+      <td><span style="background:${st.bg};color:${st.c};border:1px solid ${st.bd};padding:2px 7px;border-radius:4px;font-size:10px;font-weight:600;white-space:nowrap">${st.l}</span></td>
+      <td>${sc?`<span style="background:${sc.bg};color:${sc.c};border:1px solid ${sc.bd};padding:2px 7px;border-radius:4px;font-size:10px">${sc.l}</span>`:'—'}</td>
+      <td style="font-weight:600;color:#059669;white-space:nowrap">${p.value?fmtMoney(p.value):'—'}</td>
+      <td style="font-size:11px;color:#64748B;max-width:180px">${p.notes||'—'}</td>
     </tr>`
-  }).join('')
+  }
 
   const html=`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"/>
-  <title>Relatório de Prospects — JSR Sistemas</title>
+  <title>Relatório Prospects — JSR Sistemas</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
     body{font-family:Arial,sans-serif;font-size:12px;color:#1E293B;padding:24px}
-    h1{font-size:20px;font-weight:700;color:#0F172A;margin-bottom:4px}
-    .sub{font-size:12px;color:#64748B;margin-bottom:24px}
-    .stats{display:flex;gap:16px;margin-bottom:24px;flex-wrap:wrap}
-    .stat{background:#F1F5F9;border-radius:8px;padding:12px 16px;min-width:120px;border-left:3px solid}
-    .stat-v{font-size:24px;font-weight:700;line-height:1;margin-bottom:2px}
-    .stat-l{font-size:11px;color:#64748B}
+    h1{font-size:18px;font-weight:700;color:#0F172A;margin-bottom:2px}
+    .sub{font-size:11px;color:#64748B;margin-bottom:20px}
+    .stats{display:flex;gap:14px;margin-bottom:20px;flex-wrap:wrap}
+    .stat{background:#F1F5F9;border-radius:8px;padding:10px 14px;min-width:110px;border-left:3px solid}
+    .stat-v{font-size:22px;font-weight:700;line-height:1;margin-bottom:1px}
+    .stat-l{font-size:10px;color:#64748B}
+    .order-badge{display:inline-block;padding:2px 10px;border-radius:20px;background:#EFF6FF;color:#2563EB;font-size:10px;font-weight:600;border:1px solid #BFDBFE;margin-bottom:16px}
     table{width:100%;border-collapse:collapse;font-size:11px}
-    th{background:#1E293B;color:#fff;padding:8px 10px;text-align:left;font-weight:600;white-space:nowrap}
-    td{padding:7px 10px;border-bottom:1px solid #E2E8F0;vertical-align:top}
-    tr:nth-child(even){background:#F8FAFC}
-    .footer{margin-top:20px;font-size:10px;color:#94A3B8;text-align:right}
-    @media print{body{padding:12px}.stats{gap:10px}}
+    th{background:#1E293B;color:#fff;padding:7px 9px;text-align:left;font-weight:600;white-space:nowrap;font-size:10px}
+    td{padding:6px 9px;border-bottom:1px solid #E2E8F0;vertical-align:top}
+    tr:nth-child(even) td{background:#F8FAFC}
+    .footer{margin-top:16px;font-size:10px;color:#94A3B8;text-align:right;border-top:1px solid #E2E8F0;padding-top:8px}
+    @media print{body{padding:12px}button{display:none}}
   </style></head><body>
   <h1>📊 Relatório de Prospects</h1>
-  <div class="sub">JSR Sistemas · Gerado em ${now} · Total: ${total} prospect${total!==1?'s':''}</div>
+  <div class="sub">JSR Sistemas · Gerado em ${now} · ${total} prospect${total!==1?'s':''} encontrado${total!==1?'s':''}</div>
   <div class="stats">
-    <div class="stat" style="border-left-color:#2563EB"><div class="stat-v" style="color:#2563EB">${total}</div><div class="stat-l">Total</div></div>
-    <div class="stat" style="border-left-color:#D97706"><div class="stat-v" style="color:#D97706">${ativos}</div><div class="stat-l">Em andamento</div></div>
-    <div class="stat" style="border-left-color:#059669"><div class="stat-v" style="color:#059669">${fechados}</div><div class="stat-l">Fechados</div></div>
-    <div class="stat" style="border-left-color:#DC2626"><div class="stat-v" style="color:#DC2626">${naoFechados}</div><div class="stat-l">Não fechados</div></div>
-    ${totalValor>0?`<div class="stat" style="border-left-color:#7C3AED"><div class="stat-v" style="color:#7C3AED;font-size:16px">${fmtMoney(totalValor)}</div><div class="stat-l">Valor total em negociação</div></div>`:''}
+    <div class="stat" style="border-color:#2563EB"><div class="stat-v" style="color:#2563EB">${total}</div><div class="stat-l">Total</div></div>
+    <div class="stat" style="border-color:#D97706"><div class="stat-v" style="color:#D97706">${ativos}</div><div class="stat-l">Em andamento</div></div>
+    <div class="stat" style="border-color:#059669"><div class="stat-v" style="color:#059669">${fechados}</div><div class="stat-l">Fechados</div></div>
+    ${totalValor>0?`<div class="stat" style="border-color:#7C3AED"><div class="stat-v" style="color:#7C3AED;font-size:15px">${fmtMoney(totalValor)}</div><div class="stat-l">Valor em negociação</div></div>`:''}
   </div>
+  <div class="order-badge">Ordenado por: ${sortLabels[sortBy]||sortBy}</div>
   <table>
-    <thead><tr><th>Nome</th><th>Empresa</th><th>Contato</th><th>Segmento</th><th>Como achou</th><th>Indicado por</th><th>Status</th><th>Interação</th><th>Empresas</th><th>Valor</th><th>Observações</th></tr></thead>
-    <tbody>${rows}</tbody>
+    <thead><tr><th>Nome</th><th>Empresa</th><th>Contato</th><th>Segmento</th><th>Como achou / Indicação</th><th>Status</th><th>Interação</th><th>Valor</th><th>Observações</th></tr></thead>
+    <tbody>${bodyHTML}</tbody>
   </table>
   <div class="footer">DemandFlow · JSR Sistemas · ${now}</div>
   <script>window.onload=()=>window.print()<\/script>
@@ -812,8 +896,7 @@ function openProspectReport(){
 
   const w=window.open('','_blank','width=1200,height=800')
   if(w){w.document.write(html);w.document.close()}
-  else alert('Permita pop-ups para abrir o relatório.')
-}
+  else alert('Permita pop-ups no navegador para abrir o relatório.')
 function openProspectModal(ex){
   let f=ex?{...ex}:{name:'',companyName:'',contact:'',howFound:'',indicatedBy:'',status:'primeiro_contato',statusContato:'com_interacao',value:'',segment:'',qtdEmpresas:'',notes:''}
   const ov=el('div','overlay');const mo=el('div','modal')

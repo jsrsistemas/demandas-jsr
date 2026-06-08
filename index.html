@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
-<title>DemandFlow</title>
+<title>DemandFlow v4.2</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <style>
 :root{
@@ -295,8 +295,8 @@ const FRASE=FRASES[new Date().getDate()%FRASES.length]
 const DS={open:{l:'Aberto',c:'#1D4ED8',bg:'#EFF6FF',bd:'#BFDBFE'},in_progress:{l:'Andamento',c:'#D97706',bg:'#FFFBEB',bd:'#FDE68A'},resolved:{l:'Resolvido',c:'#059669',bg:'#ECFDF5',bd:'#A7F3D0'}}
 const DP={high:{l:'Alta',c:'#DC2626',bg:'#FEF2F2',bd:'#FECACA'},medium:{l:'Média',c:'#D97706',bg:'#FFFBEB',bd:'#FDE68A'},low:{l:'Baixa',c:'#64748B',bg:'#F8FAFC',bd:'#E2E8F0'}}
 const DT={internal:{l:'Interna',i:'●',c:'#059669',bg:'#ECFDF5',bd:'#A7F3D0'},private:{l:'Privada',i:'◆',c:'#7C3AED',bg:'#F5F3FF',bd:'#DDD6FE'},restricted:{l:'Restrita',i:'▲',c:'#DC2626',bg:'#FEF2F2',bd:'#FECACA'}}
-const PST={primeiro_contato:{l:'1° Contato',c:'#2563EB',bg:'#EFF6FF',bd:'#BFDBFE'},solicitacao_proposta:{l:'Solic. proposta',c:'#0891B2',bg:'#ECFEFF',bd:'#A5F3FC'},envio_proposta:{l:'Envio de proposta',c:'#7C3AED',bg:'#F5F3FF',bd:'#DDD6FE'},neg_mensalidade:{l:'Neg. Mensalidade',c:'#D97706',bg:'#FFFBEB',bd:'#FDE68A'},neg_implantacao:{l:'Neg. Implantação',c:'#EA580C',bg:'#FFF7ED',bd:'#FDBA74'},neg_mensal_impl:{l:'Neg. Mensal+Impl.',c:'#0891B2',bg:'#ECFEFF',bd:'#A5F3FC'},fechado:{l:'Fechado ✓',c:'#059669',bg:'#ECFDF5',bd:'#A7F3D0'},nao_fechado:{l:'Não Fechado',c:'#DC2626',bg:'#FEF2F2',bd:'#FECACA'}}
-const PST_MAP={contato:'primeiro_contato',proposta:'envio_proposta',aguardando:'primeiro_contato',nao_retornou:'primeiro_contato',aceite:'fechado',nao_aceite:'nao_fechado'}
+const PST={primeiro_contato:{l:'1° Contato',c:'#2563EB',bg:'#EFF6FF',bd:'#BFDBFE'},solicitacao_proposta:{l:'Solic. proposta',c:'#0891B2',bg:'#ECFEFF',bd:'#A5F3FC'},envio_proposta:{l:'Envio de proposta',c:'#7C3AED',bg:'#F5F3FF',bd:'#DDD6FE'},neg_mensal_impl:{l:'Neg. Mensal+Impl.',c:'#EA580C',bg:'#FFF7ED',bd:'#FDBA74'},fechado:{l:'Fechado ✓',c:'#059669',bg:'#ECFDF5',bd:'#A7F3D0'},nao_fechado:{l:'Não Fechado',c:'#DC2626',bg:'#FEF2F2',bd:'#FECACA'}}
+const PST_MAP={contato:'primeiro_contato',proposta:'envio_proposta',aguardando:'primeiro_contato',nao_retornou:'primeiro_contato',aceite:'fechado',nao_aceite:'nao_fechado',neg_mensalidade:'neg_mensal_impl',neg_implantacao:'neg_mensal_impl'}
 const pstN=s=>PST[s]?s:(PST_MAP[s]||'primeiro_contato')
 const PSTC={com_interacao:{l:'Com interação',c:'#059669',bg:'#ECFDF5',bd:'#A7F3D0'},sem_interacao:{l:'Sem interação',c:'#DC2626',bg:'#FEF2F2',bd:'#FECACA'}}
 const NP={info:{l:'Informativo',c:'#2563EB',bg:'#EFF6FF',bd:'#BFDBFE',top:'#2563EB'},warning:{l:'Atenção',c:'#D97706',bg:'#FFFBEB',bd:'#FDE68A',top:'#F59E0B'},urgent:{l:'Urgente',c:'#DC2626',bg:'#FEF2F2',bd:'#FECACA',top:'#DC2626'}}
@@ -366,7 +366,7 @@ function buildSidebar(){
   const isA=CP?.role==='admin'
   const sb=el('div','sb')
   const logo=el('div','sb-logo')
-  ap(logo,ap(el('div','sb-logo-icon'),'D'),ap(el('div',''),ap(el('div','sb-logo-text'),'DemandFlow'),ap(el('div','sb-logo-sub'),'Central da Equipe')))
+  ap(logo,ap(el('div','sb-logo-icon'),'D'),ap(el('div',''),ap(el('div','sb-logo-text'),'DemandFlow'),ap(el('div','sb-logo-sub'),'Central da Equipe · v4.2 ✦')))
   sb.appendChild(logo)
   const nav=el('div','sb-nav')
   ap(nav,ap(el('div','sb-sec'),'Menu'))
@@ -936,7 +936,7 @@ function renderLogin(){
   sb.onclick=async()=>{err.style.display='none';sb.textContent='Entrando...';sb.disabled=true;try{await signInWithEmailAndPassword(auth,em,pw)}catch{err.textContent='E-mail ou senha incorretos.';err.style.display='block';sb.textContent='Entrar';sb.disabled=false}}
   pwI.onkeydown=e=>{if(e.key==='Enter')sb.click()}
   const lc=el('div','login-card')
-  ap(lc,ap(el('div','',{textAlign:'center',marginBottom:'28px'}),ap(el('div','',{width:'50px',height:'50px',borderRadius:'12px',background:'var(--blue)',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 12px',color:'#fff',fontSize:'22px',fontWeight:'700'}),'D'),ap(el('h1','',{fontSize:'22px',fontWeight:'700',marginBottom:'4px'}),'DemandFlow'),ap(el('p','tc2',{fontSize:'13px'}),'Central da sua equipe')),ap(el('div','flex',{flexDirection:'column',gap:'11px'}),ap(ap(el('div','form-g',{marginBottom:'0'}),ap(el('label','form-l'),'E-mail')),emI),ap(ap(el('div','form-g',{marginBottom:'0'}),ap(el('label','form-l'),'Senha')),pwI),err,sb))
+  ap(lc,ap(el('div','',{textAlign:'center',marginBottom:'28px'}),ap(el('div','',{width:'50px',height:'50px',borderRadius:'12px',background:'var(--blue)',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 12px',color:'#fff',fontSize:'22px',fontWeight:'700'}),'D'),ap(el('h1','',{fontSize:'22px',fontWeight:'700',marginBottom:'4px'}),'DemandFlow'),ap(el('p','tc2',{fontSize:'13px'}),'Central da sua equipe'),ap(el('span','',{display:'inline-block',marginTop:'6px',padding:'2px 10px',borderRadius:'20px',background:'#EFF6FF',color:'#2563EB',fontSize:'10px',fontWeight:'600',border:'1px solid #BFDBFE'}),'versão 4.2')),ap(el('div','flex',{flexDirection:'column',gap:'11px'}),ap(ap(el('div','form-g',{marginBottom:'0'}),ap(el('label','form-l'),'E-mail')),emI),ap(ap(el('div','form-g',{marginBottom:'0'}),ap(el('label','form-l'),'Senha')),pwI),err,sb))
   ap(root,ap(el('div','login-bg'),lc,ap(el('p','',{textAlign:'center',fontSize:'12px',color:'rgba(255,255,255,.4)',marginTop:'14px'}),'Sem acesso? Solicite ao administrador.')))
 }
 

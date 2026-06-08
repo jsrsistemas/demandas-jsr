@@ -373,7 +373,7 @@ function buildSidebar(){
   const isA=CP?.role==='admin'
   const sb=el('div','sb')
   const logo=el('div','sb-logo')
-  ap(logo,ap(el('div','sb-logo-icon'),'D'),ap(el('div',''),ap(el('div','sb-logo-text'),'DemandFlow'),ap(el('div','sb-logo-sub'),'Central da Equipe · v4.4 ✦')))
+  ap(logo,ap(el('div','sb-logo-icon'),'D'),ap(el('div',''),ap(el('div','sb-logo-text'),'DemandFlow'),ap(el('div','sb-logo-sub'),'Central da Equipe · v4.5 ✦')))
   sb.appendChild(logo)
   const nav=el('div','sb-nav')
   ap(nav,ap(el('div','sb-sec'),'Menu'))
@@ -616,116 +616,226 @@ function buildUpdates(){
   const isA=CP?.role==='admin'
   const w=el('div','page')
 
-  // Botão no topo
-  const h=el('div','flex aic jcsb mb20')
+  // Header
+  const h=el('div','flex aic jcsb mb16')
   ap(h,ap(el('h2','',{fontSize:'16px',fontWeight:'700'}),'Atualizações do Sistema'))
   if(isA){
     const btns=el('div','flex g8')
-    const nb=ap(el('button','btn btn-p btn-sm'),'+ Nova atualização');nb.onclick=()=>openUpdateModal()
+    const addBtn=ap(el('button','btn btn-p btn-sm'),'+ Adicionar linha')
+    addBtn.onclick=()=>addInlineRow()
     const expBtn=ap(el('button','btn btn-s btn-sm'),'📥 Exportar modelo');expBtn.onclick=exportUpdateTemplate
-    const impLabel=el('label','btn btn-s btn-sm',{cursor:'pointer'});impLabel.textContent='📤 Importar planilha'
+    const impLabel=el('label','btn btn-s btn-sm',{cursor:'pointer'});impLabel.textContent='📤 Importar'
     const impInput=el('input','');impInput.type='file';impInput.accept='.xlsx,.xls';impInput.style.display='none'
     impInput.onchange=e=>{if(e.target.files[0])importUpdateFile(e.target.files[0]);impInput.value=''}
     impLabel.appendChild(impInput)
-    ap(btns,nb,expBtn,impLabel);h.appendChild(btns)
+    ap(btns,addBtn,expBtn,impLabel);h.appendChild(btns)
   }
   w.appendChild(h)
 
-  if(!updates.length){
-    const emp=el('div','empty')
-    ap(emp,ap(el('div','empty-ic'),'🎓'),ap(el('div','empty-t'),'Nenhuma atualização'),ap(el('div','empty-s'),'O administrador ainda não publicou nenhuma atualização.'))
-    w.appendChild(emp)
-    return w
+  // Tabela
+  const tblWrap=el('div','',{overflowX:'auto',background:'var(--card)',border:'1px solid var(--brd)',borderRadius:'var(--r)',boxShadow:'var(--sh)'})
+  tblWrap.id='updates-table-wrap'
+  const tbl=el('table','',{width:'100%',borderCollapse:'collapse',fontSize:'12px',minWidth:'900px'})
+  tbl.id='updates-tbl'
+
+  // Cabeçalho
+  const cols=[
+    {l:'',w:'32px'},
+    {l:'Título',w:'220px'},
+    {l:'Processo',w:'110px'},
+    {l:'Tela',w:'130px'},
+    {l:'Versão',w:'70px'},
+    {l:'Tipo Dev',w:'130px'},
+    {l:'Módulo',w:'130px'},
+    {l:'Descrição',w:'180px'},
+    {l:'Material',w:'70px'},
+    {l:'Publicado por',w:'130px'},
+    {l:'Visto',w:'80px'},
+    ...(isA?[{l:'',w:'70px'}]:[]),
+  ]
+  const thead=el('thead')
+  const hr=el('tr','',{background:'#F8FAFC'})
+  cols.forEach(c=>{
+    const th=ap(el('th','',{
+      padding:'9px 10px',textAlign:'left',fontWeight:'600',fontSize:'11px',
+      color:'var(--t2)',borderBottom:'2px solid var(--brd)',
+      whiteSpace:'nowrap',width:c.w,position:'sticky',top:'0',background:'#F8FAFC'
+    }),c.l)
+    hr.appendChild(th)
+  })
+  thead.appendChild(hr);tbl.appendChild(thead)
+  const tbody=el('tbody');tbody.id='updates-tbody'
+  tbl.appendChild(tbody);tblWrap.appendChild(tbl);w.appendChild(tblWrap)
+
+  renderUpdateRows()
+  return w
+
+  function renderUpdateRows(){
+    const tb=document.getElementById('updates-tbody');if(!tb)return
+    // Keep any new-row inputs that might be present
+    const newRows=Array.from(tb.querySelectorAll('tr[data-new]'))
+    tb.innerHTML=''
+    newRows.forEach(r=>tb.appendChild(r))
+
+    if(!updates.length&&!newRows.length){
+      const tr=el('tr')
+      const td=ap(el('td','',{padding:'24px',textAlign:'center',color:'var(--t3)',fontSize:'13px'}),
+        isA?'Clique em "+ Adicionar linha" para criar a primeira atualização.':'Nenhuma atualização publicada ainda.')
+      td.setAttribute('colspan','12')
+      ap(tr,td);tb.appendChild(tr)
+      return
+    }
+
+    updates.forEach(u=>{
+      const viewed=u.viewedBy?.some(v=>v.uid===CU.uid)
+      const viewCount=u.viewedBy?.length||0
+      const ts=u.createdAt?.toDate?.()||new Date()
+      const tr=el('tr','',{background:viewed?'var(--card)':'#FFFBEB',transition:'background .2s'})
+      tr.onmouseenter=()=>{if(viewed)tr.style.background='#F8FAFC'};tr.onmouseleave=()=>{tr.style.background=viewed?'var(--card)':'#FFFBEB'}
+
+      // Badge NOVO
+      const newTd=el('td','',{padding:'6px 4px 6px 10px',borderBottom:'1px solid var(--brd)',textAlign:'center'})
+      if(!viewed){const b=ap(el('span','',{fontSize:'9px',fontWeight:'700',color:'var(--blue)',background:'var(--bluel)',padding:'2px 5px',borderRadius:'8px',whiteSpace:'nowrap'}),'NOVO');newTd.appendChild(b)}
+      tr.appendChild(newTd)
+
+      // Células de dados
+      const cells=[
+        el('td','',{padding:'7px 10px',borderBottom:'1px solid var(--brd)',fontWeight:'500',maxWidth:'220px'}),
+        el('td','',{padding:'7px 10px',borderBottom:'1px solid var(--brd)'}),
+        el('td','',{padding:'7px 10px',borderBottom:'1px solid var(--brd)',maxWidth:'130px'}),
+        el('td','',{padding:'7px 10px',borderBottom:'1px solid var(--brd)',textAlign:'center'}),
+        el('td','',{padding:'7px 10px',borderBottom:'1px solid var(--brd)'}),
+        el('td','',{padding:'7px 10px',borderBottom:'1px solid var(--brd)'}),
+        el('td','',{padding:'7px 10px',borderBottom:'1px solid var(--brd)',maxWidth:'180px',color:'var(--t2)',fontSize:'11px'}),
+        el('td','',{padding:'7px 10px',borderBottom:'1px solid var(--brd)',textAlign:'center'}),
+        el('td','',{padding:'7px 10px',borderBottom:'1px solid var(--brd)'}),
+        el('td','',{padding:'7px 10px',borderBottom:'1px solid var(--brd)'}),
+      ]
+
+      // Preencher células
+      const titleSpan=ap(el('span','trunc',{display:'block',maxWidth:'210px',fontSize:'12px'}),u.title||'')
+      cells[0].appendChild(titleSpan)
+
+      if(u.procTipo&&PROC_TIPO[u.procTipo]){const t=tag_(PROC_TIPO[u.procTipo],PROC_TIPO[u.procTipo].l);cells[1].appendChild(t)}
+      else cells[1].textContent='—'
+
+      const screenSpan=ap(el('span','trunc',{display:'block',maxWidth:'120px',fontSize:'12px'}),u.screenName||'—')
+      cells[2].appendChild(screenSpan)
+
+      cells[3].textContent=u.version||'—'
+
+      if(u.devCat&&DEV_CAT[u.devCat]){const t=tag_(DEV_CAT[u.devCat],DEV_CAT[u.devCat].l);cells[4].appendChild(t)}
+      else cells[4].textContent='—'
+
+      if(u.devMod&&DEV_MOD[u.devMod]){const t=tag_(DEV_MOD[u.devMod],DEV_MOD[u.devMod].l);cells[5].appendChild(t)}
+      else cells[5].textContent='—'
+
+      const descSpan=ap(el('span','trunc',{display:'block',maxWidth:'170px'}),u.description||'—')
+      cells[6].appendChild(descSpan)
+
+      // Material
+      const matIcons=[]
+      if(u.type==='storage_video'||u.type==='video')matIcons.push('📹')
+      if(u.type==='pdf')matIcons.push('📄')
+      if(u.imageUrl)matIcons.push('🖼')
+      cells[7].textContent=matIcons.length?matIcons.join(' '):'—'
+
+      // Publicado
+      const pubDiv=el('div','',{fontSize:'11px'})
+      ap(pubDiv,ap(el('div','fw5',{color:'var(--t1)'}),u.createdByName||''),ap(el('div','tc3'),ts.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'})),ap(el('div','',{color:'var(--blue)',fontWeight:'600'}),ts.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})))
+      cells[8].appendChild(pubDiv)
+
+      // Visto
+      const vistoDiv=el('div','',{display:'flex',flexDirection:'column',alignItems:'center',gap:'2px'})
+      if(!viewed){
+        const cb=ap(el('button','btn btn-g btn-xs'),'✓ Vi')
+        cb.onclick=async()=>{cb.disabled=true;await updateDoc(doc(db,'updates',u.id),{viewedBy:arrayUnion({uid:CU.uid,name:CP.name,viewedAt:new Date().toISOString()})})}
+        vistoDiv.appendChild(cb)
+      } else {
+        ap(vistoDiv,ap(el('span','',{fontSize:'10px',color:'var(--green)',fontWeight:'600'}),'✓ Visto'))
+      }
+      ap(vistoDiv,ap(el('span','',{fontSize:'10px',color:'var(--t3)'}),viewCount+' '+(viewCount===1?'pessoa':'pessoas')))
+      cells[9].appendChild(vistoDiv)
+
+      cells.forEach(c=>tr.appendChild(c))
+
+      // Ações (admin)
+      if(isA){
+        const actTd=el('td','',{padding:'6px 10px',borderBottom:'1px solid var(--brd)'})
+        const editBtn=ap(el('button','btn btn-s btn-xs'),'✏')
+        editBtn.title='Editar';editBtn.onclick=()=>openUpdateModal(u)
+        const delBtn=ap(el('button','btn btn-d btn-xs'),'×')
+        delBtn.title='Excluir';delBtn.onclick=async()=>{if(confirm('Excluir?'))await deleteDoc(doc(db,'updates',u.id))}
+        ap(actTd,el('div','flex g4',{}));actTd.lastChild.appendChild(editBtn);actTd.lastChild.appendChild(delBtn)
+        tr.appendChild(actTd)
+      }
+      tbody.appendChild(tr)
+    })
   }
 
-  updates.forEach(u=>{
-    const viewed=u.viewedBy?.some(v=>v.uid===CU.uid)
-    const viewerCount=u.viewedBy?.length||0
+  function addInlineRow(){
+    const tb=document.getElementById('updates-tbody');if(!tb)return
+    // Remove row if already exists
+    const existing=tb.querySelector('tr[data-new]');if(existing)existing.remove()
 
-    // Card
-    const uc=el('div','update-c')
-    if(!viewed)uc.style.borderColor='var(--blue)'
+    let nf={title:'',procTipo:'',screenName:'',version:'',devCat:'',devMod:'',description:''}
+    const tr=el('tr','',{background:'#EFF6FF'});tr.setAttribute('data-new','1')
 
-    // Header
-    const uh=el('div','update-h')
-    const ul=el('div','',{flex:'1',minWidth:'0'})
+    // Badge col
+    const newTd=el('td','',{padding:'6px 4px 6px 10px',borderBottom:'1px solid var(--blueb)'})
+    tr.appendChild(newTd)
 
-    // Badge NOVO
-    if(!viewed){
-      const badge=el('span','tag',{background:'#EFF6FF',color:'#2563EB',borderColor:'#BFDBFE',fontWeight:'700',fontSize:'11px',marginBottom:'8px',display:'inline-block'})
-      badge.textContent='● NOVO'
-      ul.appendChild(badge)
-      ul.appendChild(el('br'))
+    // Inputs inline
+    const mkInp=(ph,key,w)=>{
+      const td=el('td','',{padding:'4px 6px',borderBottom:'1px solid var(--blueb)'})
+      const inp=el('input','',{fontSize:'12px',padding:'5px 8px',border:'1px solid var(--blueb)',borderRadius:'6px',width:w||'100%'})
+      inp.placeholder=ph;inp.oninput=e=>nf[key]=e.target.value;td.appendChild(inp);return td
+    }
+    const mkSel=(opts,key)=>{
+      const td=el('td','',{padding:'4px 6px',borderBottom:'1px solid var(--blueb)'})
+      const sel=el('select','',{fontSize:'11px',padding:'5px 6px',border:'1px solid var(--blueb)',borderRadius:'6px',width:'100%'})
+      sel.innerHTML='<option value="">—</option>'+Object.entries(opts).map(([k,v])=>`<option value="${k}">${v.l}</option>`).join('')
+      sel.onchange=e=>nf[key]=e.target.value;td.appendChild(sel);return td
     }
 
-    // Tags
-    const utags=el('div','',{display:'flex',gap:'4px',flexWrap:'wrap',marginBottom:'8px',marginTop:'4px'})
-    const typeCfg={video:{l:'📹 Vídeo',c:'#DC2626',bg:'#FEF2F2',bd:'#FECACA'},storage_video:{l:'📹 Vídeo',c:'#DC2626',bg:'#FEF2F2',bd:'#FECACA'},pdf:{l:'📄 PDF',c:'#2563EB',bg:'#EFF6FF',bd:'#BFDBFE'},none:{l:null}}[u.type]||{l:null}
-    if(typeCfg.l)utags.appendChild(tag_({c:typeCfg.c,bg:typeCfg.bg,bd:typeCfg.bd},typeCfg.l))
-    if(u.procTipo&&PROC_TIPO[u.procTipo])utags.appendChild(tag_(PROC_TIPO[u.procTipo],PROC_TIPO[u.procTipo].l))
-    if(u.devCat&&DEV_CAT[u.devCat])utags.appendChild(tag_(DEV_CAT[u.devCat],DEV_CAT[u.devCat].l))
-    if(u.devMod&&DEV_MOD[u.devMod])utags.appendChild(tag_(DEV_MOD[u.devMod],DEV_MOD[u.devMod].l))
-    if(u.version){const vt=el('span','tag',{background:'#F8FAFC',color:'#475569',borderColor:'#CBD5E1'});vt.textContent='v'+u.version;utags.appendChild(vt)}
-    if(utags.children.length)ul.appendChild(utags)
+    const titleTd=mkInp('Título da atualização *','title','200px')
+    titleTd.querySelector('input').style.fontWeight='500'
+    ap(tr,titleTd,mkSel(PROC_TIPO,'procTipo'),mkInp('Nome da tela','screenName'),mkInp('Versão','version','60px'),mkSel(DEV_CAT,'devCat'),mkSel(DEV_MOD,'devMod'))
 
-    // Título
-    const ht=ap(el('h3','',{fontSize:'15px',fontWeight:'700',marginBottom:'3px',color:'var(--t1)'}),u.title||'')
-    ul.appendChild(ht)
-    if(u.screenName)ul.appendChild(ap(el('p','f12 tc2',{marginBottom:'3px'}),'🖥 Tela: '+u.screenName))
-    if(u.description)ul.appendChild(ap(el('p','f12 tc2',{lineHeight:'1.6'}),u.description))
+    const descTd=el('td','',{padding:'4px 6px',borderBottom:'1px solid var(--blueb)'})
+    const descInp=el('input','',{fontSize:'11px',padding:'5px 8px',border:'1px solid var(--blueb)',borderRadius:'6px',width:'100%'})
+    descInp.placeholder='Descrição...';descInp.oninput=e=>nf.description=e.target.value;descTd.appendChild(descInp);tr.appendChild(descTd)
 
-    // Data/hora no canto
-    const ur=el('div','',{textAlign:'right',flexShrink:'0',marginLeft:'12px'})
-    const ts=u.createdAt?.toDate?.()||new Date()
-    ap(ur,
-      ap(el('div','f11 tc3',{marginBottom:'1px'}),u.createdByName||''),
-      ap(el('div','f11 tc3'),ts.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'})),
-      ap(el('div','f12 fw5',{color:'var(--blue)'}),ts.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}))
-    )
+    // Material col placeholder
+    const matTd=el('td','',{padding:'4px 6px',borderBottom:'1px solid var(--blueb)',textAlign:'center',color:'var(--t3)',fontSize:'11px'});matTd.textContent='Após salvar';tr.appendChild(matTd)
 
-    ap(uh,ul,ur)
-    uc.appendChild(uh)
+    // Empty cols
+    ;[el('td','',{borderBottom:'1px solid var(--blueb)'}),el('td','',{borderBottom:'1px solid var(--blueb)'})].forEach(td=>tr.appendChild(td))
 
-    // Mídia
-    if(u.url){
-      const media=buildMedia(u.type,u.url,'')
-      if(media)uc.appendChild(media)
+    // Salvar/Cancelar
+    const actTd=el('td','',{padding:'4px 8px',borderBottom:'1px solid var(--blueb)'})
+    const saveBtn=ap(el('button','btn btn-p btn-xs'),'Salvar')
+    const cancelBtn=ap(el('button','btn btn-s btn-xs'),'×')
+    saveBtn.onclick=async()=>{
+      if(!nf.title.trim()){titleTd.querySelector('input').style.borderColor='var(--red)';return}
+      saveBtn.disabled=true;saveBtn.textContent='...'
+      await addDoc(collection(db,'updates'),{
+        ...nf,type:'none',url:'',imageUrl:'',
+        createdBy:CU.uid,createdByName:CP.name,
+        createdAt:serverTimestamp(),
+        viewedBy:[{uid:CU.uid,name:CP.name,viewedAt:new Date().toISOString()}]
+      })
+      tr.remove()
     }
-    // Imagem/print
-    if(u.imageUrl){
-      const imgWrap=el('div','',{padding:'0 20px 12px'})
-      const img=el('img','',{maxWidth:'100%',borderRadius:'8px',border:'1px solid var(--brd)',cursor:'pointer'})
-      img.src=u.imageUrl;img.onclick=()=>window.open(u.imageUrl,'_blank')
-      img.title='Clique para ampliar'
-      imgWrap.appendChild(img);uc.appendChild(imgWrap)
-    }
+    cancelBtn.onclick=()=>tr.remove()
+    ap(actTd,el('div','flex g4',{}));actTd.lastChild.appendChild(saveBtn);actTd.lastChild.appendChild(cancelBtn)
+    tr.appendChild(actTd)
 
-    // Rodapé
-    const uf=el('div','update-foot')
-    const vw=el('div','',{display:'flex',alignItems:'center',gap:'8px',flex:'1'})
-    ap(vw,ap(el('span','f12 tc2'),viewerCount+' de '+(users.length||1)+' '+(viewerCount===1?'pessoa viu':'pessoas viram')))
-    if(u.viewedBy?.length){
-      const avw=el('div','',{display:'flex'})
-      u.viewedBy.slice(0,5).forEach((v,i)=>{const a=av(v.name,20);if(i>0)a.style.marginLeft='-5px';a.title=v.name;avw.appendChild(a)})
-      vw.appendChild(avw)
-    }
-    uf.appendChild(vw)
-    const acts=el('div','',{display:'flex',gap:'6px'})
-    if(!viewed){
-      const cb=ap(el('button','btn btn-g btn-sm'),'✓ Confirmar que vi')
-      cb.onclick=async()=>{cb.disabled=true;cb.textContent='✓ Visto';await updateDoc(doc(db,'updates',u.id),{viewedBy:arrayUnion({uid:CU.uid,name:CP.name,viewedAt:new Date().toISOString()})})}
-      acts.appendChild(cb)
-    }
-    if(isA){
-      const db2=ap(el('button','btn btn-d btn-xs'),'Excluir')
-      db2.onclick=async()=>{if(confirm('Excluir?'))await deleteDoc(doc(db,'updates',u.id))}
-      acts.appendChild(db2)
-    }
-    uf.appendChild(acts)
-    uc.appendChild(uf)
-    w.appendChild(uc)
-  })
-  return w
+    // Inserir no topo da tabela
+    if(tb.firstChild)tb.insertBefore(tr,tb.firstChild)
+    else tb.appendChild(tr)
+    titleTd.querySelector('input').focus()
+  }
 }
 
 function exportUpdateTemplate(){
@@ -837,11 +947,11 @@ function importUpdateFile(file){
   }
   reader.readAsArrayBuffer(file)
 }
-function openUpdateModal(){
-  let f={title:'',procTipo:'',screenName:'',version:'',type:'none',url:'',description:'',devCat:'',devMod:''}
+function openUpdateModal(ex=null){
+  let f=ex?{...ex}:{title:'',procTipo:'',screenName:'',version:'',type:'none',url:'',description:'',devCat:'',devMod:''}
   let selectedVideo=null,selectedImage=null
   const ov=el('div','overlay');const mo=el('div','modal')
-  const mh=ap(el('div','modal-h'),ap(el('div','modal-t'),'Nova atualização'))
+  const mh=ap(el('div','modal-h'),ap(el('div','modal-t'),ex?'Editar atualização':'Material e detalhes'))
   const x=ap(el('button','modal-x'),'×');x.onclick=()=>ov.remove();mh.appendChild(x)
   const mb=el('div','modal-b')
 
@@ -924,15 +1034,15 @@ function openUpdateModal(){
 
   const mf=el('div','modal-f')
   const can=ap(el('button','btn btn-s'),'Cancelar');can.onclick=()=>ov.remove()
-  const cr=ap(el('button','btn btn-p'),'Publicar')
+  const cr=ap(el('button','btn btn-p'),ex?'Salvar alterações':'Publicar')
 
   cr.onclick=async()=>{
     if(!f.title.trim())return
-    cr.disabled=true;cr.textContent='Publicando...'
+    cr.disabled=true;cr.textContent='Salvando...'
     try{
       let finalUrl=f.url||''
       let finalType=f.type
-      let imageUrl=''
+      let imageUrl=ex?.imageUrl||''
 
       // Upload vídeo
       if(f.type==='upload'&&selectedVideo){
@@ -951,14 +1061,20 @@ function openUpdateModal(){
         await new Promise((res,rej)=>{iTask.on('state_changed',()=>{},rej,async()=>{imageUrl=await getDownloadURL(iTask.snapshot.ref);res()})})
       }
 
-      await addDoc(collection(db,'updates'),{
+      const data={
         title:f.title,procTipo:f.procTipo||'',screenName:f.screenName||'',
         version:f.version||'',type:finalType,url:finalUrl,imageUrl:imageUrl,
         description:f.description||'',devCat:f.devCat||'',devMod:f.devMod||'',
-        createdBy:CU.uid,createdByName:CP.name,
-        createdAt:serverTimestamp(),
-        viewedBy:[{uid:CU.uid,name:CP.name,viewedAt:new Date().toISOString()}]
-      })
+      }
+      if(ex){
+        await updateDoc(doc(db,'updates',ex.id),{...data,updatedAt:serverTimestamp()})
+      } else {
+        await addDoc(collection(db,'updates'),{...data,
+          createdBy:CU.uid,createdByName:CP.name,
+          createdAt:serverTimestamp(),
+          viewedBy:[{uid:CU.uid,name:CP.name,viewedAt:new Date().toISOString()}]
+        })
+      }
       ov.remove()
     }catch(e){
       alert('Erro ao publicar: '+e.message)

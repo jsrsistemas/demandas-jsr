@@ -692,7 +692,10 @@ function openUpdateModal(){
 function buildProspects(){
   const w=el('div','page')
   const h=ap(el('div','flex aic jcsb mb12'),ap(el('h2','',{fontSize:'16px',fontWeight:'700'}),'Pipeline de Prospects'))
-  const nb=ap(el('button','btn btn-p btn-sm'),'+ Novo prospect');nb.onclick=()=>openProspectModal();h.appendChild(nb);w.appendChild(h)
+  const btns=el('div','flex g8')
+  const nb=ap(el('button','btn btn-p btn-sm'),'+ Novo prospect');nb.onclick=()=>openProspectModal()
+  const rb=ap(el('button','btn btn-s btn-sm'),'📊 Relatório');rb.onclick=()=>openProspectReport()
+  ap(btns,nb,rb);h.appendChild(btns);w.appendChild(h)
   const sg=el('div','stats-g stats-4 mb16')
   ;[{v:prospects.length,l:'Total',c:'#3B82F6'},{v:prospects.filter(p=>!['fechado','nao_fechado'].includes(pstN(p.status))).length,l:'Em andamento',c:'#F59E0B'},{v:prospects.filter(p=>pstN(p.status)==='fechado').length,l:'Fechados',c:'#10B981'},{v:prospects.filter(p=>pstN(p.status)==='nao_fechado').length,l:'Não fechados',c:'#EF4444'}].forEach(s=>{
     ap(sg,ap(el('div','stat-c',{borderLeftColor:s.c}),ap(el('div','stat-v',{color:s.c}),String(s.v)),ap(el('div','stat-l'),s.l)))
@@ -728,6 +731,71 @@ function buildProspects(){
     col.appendChild(cards);kb.appendChild(col)
   })
   w.appendChild(kb);return w
+}
+function openProspectReport(){
+  const now=new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'})
+  const total=prospects.length
+  const ativos=prospects.filter(p=>!['fechado','nao_fechado'].includes(pstN(p.status))).length
+  const fechados=prospects.filter(p=>pstN(p.status)==='fechado').length
+  const naoFechados=prospects.filter(p=>pstN(p.status)==='nao_fechado').length
+  const totalValor=prospects.filter(p=>p.value).reduce((s,p)=>s+Number(p.value),0)
+
+  const rows=prospects.map(p=>{
+    const st=PST[pstN(p.status)]||PST.primeiro_contato
+    const sc=PSTC[p.statusContato]
+    return `<tr>
+      <td>${p.name||'—'}</td>
+      <td>${p.companyName||'—'}</td>
+      <td>${p.contact||'—'}</td>
+      <td>${p.segment||'—'}</td>
+      <td>${p.howFound||'—'}</td>
+      <td>${p.indicatedBy||'—'}</td>
+      <td><span style="background:${st.bg};color:${st.c};border:1px solid ${st.bd};padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap">${st.l}</span></td>
+      <td>${sc?`<span style="background:${sc.bg};color:${sc.c};border:1px solid ${sc.bd};padding:2px 8px;border-radius:4px;font-size:11px">${sc.l}</span>`:'—'}</td>
+      <td>${p.qtdEmpresas?p.qtdEmpresas+' emp.':'—'}</td>
+      <td style="font-weight:600;color:#059669">${p.value?fmtMoney(p.value):'—'}</td>
+      <td style="max-width:200px;font-size:11px;color:#64748B">${p.notes||'—'}</td>
+    </tr>`
+  }).join('')
+
+  const html=`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"/>
+  <title>Relatório de Prospects — JSR Sistemas</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Arial,sans-serif;font-size:12px;color:#1E293B;padding:24px}
+    h1{font-size:20px;font-weight:700;color:#0F172A;margin-bottom:4px}
+    .sub{font-size:12px;color:#64748B;margin-bottom:24px}
+    .stats{display:flex;gap:16px;margin-bottom:24px;flex-wrap:wrap}
+    .stat{background:#F1F5F9;border-radius:8px;padding:12px 16px;min-width:120px;border-left:3px solid}
+    .stat-v{font-size:24px;font-weight:700;line-height:1;margin-bottom:2px}
+    .stat-l{font-size:11px;color:#64748B}
+    table{width:100%;border-collapse:collapse;font-size:11px}
+    th{background:#1E293B;color:#fff;padding:8px 10px;text-align:left;font-weight:600;white-space:nowrap}
+    td{padding:7px 10px;border-bottom:1px solid #E2E8F0;vertical-align:top}
+    tr:nth-child(even){background:#F8FAFC}
+    .footer{margin-top:20px;font-size:10px;color:#94A3B8;text-align:right}
+    @media print{body{padding:12px}.stats{gap:10px}}
+  </style></head><body>
+  <h1>📊 Relatório de Prospects</h1>
+  <div class="sub">JSR Sistemas · Gerado em ${now} · Total: ${total} prospect${total!==1?'s':''}</div>
+  <div class="stats">
+    <div class="stat" style="border-left-color:#2563EB"><div class="stat-v" style="color:#2563EB">${total}</div><div class="stat-l">Total</div></div>
+    <div class="stat" style="border-left-color:#D97706"><div class="stat-v" style="color:#D97706">${ativos}</div><div class="stat-l">Em andamento</div></div>
+    <div class="stat" style="border-left-color:#059669"><div class="stat-v" style="color:#059669">${fechados}</div><div class="stat-l">Fechados</div></div>
+    <div class="stat" style="border-left-color:#DC2626"><div class="stat-v" style="color:#DC2626">${naoFechados}</div><div class="stat-l">Não fechados</div></div>
+    ${totalValor>0?`<div class="stat" style="border-left-color:#7C3AED"><div class="stat-v" style="color:#7C3AED;font-size:16px">${fmtMoney(totalValor)}</div><div class="stat-l">Valor total em negociação</div></div>`:''}
+  </div>
+  <table>
+    <thead><tr><th>Nome</th><th>Empresa</th><th>Contato</th><th>Segmento</th><th>Como achou</th><th>Indicado por</th><th>Status</th><th>Interação</th><th>Empresas</th><th>Valor</th><th>Observações</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <div class="footer">DemandFlow · JSR Sistemas · ${now}</div>
+  <script>window.onload=()=>window.print()<\/script>
+  </body></html>`
+
+  const w=window.open('','_blank','width=1200,height=800')
+  if(w){w.document.write(html);w.document.close()}
+  else alert('Permita pop-ups para abrir o relatório.')
 }
 function openProspectModal(ex){
   let f=ex?{...ex}:{name:'',companyName:'',contact:'',howFound:'',indicatedBy:'',status:'primeiro_contato',statusContato:'com_interacao',value:'',segment:'',qtdEmpresas:'',notes:''}

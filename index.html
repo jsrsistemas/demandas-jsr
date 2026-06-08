@@ -897,6 +897,7 @@ function generateReport(sortBy,filterStatus){
   const w=window.open('','_blank','width=1200,height=800')
   if(w){w.document.write(html);w.document.close()}
   else alert('Permita pop-ups no navegador para abrir o relatório.')
+}
 function openProspectModal(ex){
   let f=ex?{...ex}:{name:'',companyName:'',contact:'',howFound:'',indicatedBy:'',status:'primeiro_contato',statusContato:'com_interacao',value:'',segment:'',qtdEmpresas:'',notes:''}
   const ov=el('div','overlay');const mo=el('div','modal')

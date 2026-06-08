@@ -303,6 +303,7 @@ const PSTC={com_interacao:{l:'Com interação',c:'#059669',bg:'#ECFDF5',bd:'#A7F
 const NP={info:{l:'Informativo',c:'#2563EB',bg:'#EFF6FF',bd:'#BFDBFE',top:'#2563EB'},warning:{l:'Atenção',c:'#D97706',bg:'#FFFBEB',bd:'#FDE68A',top:'#F59E0B'},urgent:{l:'Urgente',c:'#DC2626',bg:'#FEF2F2',bd:'#FECACA',top:'#DC2626'}}
 const DEV_CAT={nova_tela:{l:'Nova tela',c:'#7C3AED',bg:'#F5F3FF',bd:'#DDD6FE'},correcoes:{l:'Correções',c:'#DC2626',bg:'#FEF2F2',bd:'#FECACA'},implementacoes:{l:'Implementações',c:'#2563EB',bg:'#EFF6FF',bd:'#BFDBFE'},melhorias:{l:'Melhorias',c:'#059669',bg:'#ECFDF5',bd:'#A7F3D0'}}
 const DEV_MOD={retaguarda:{l:'Retaguarda',c:'#0F172A',bg:'#F1F5F9',bd:'#CBD5E1'},financeiro:{l:'Financeiro',c:'#059669',bg:'#ECFDF5',bd:'#A7F3D0'},fiscal:{l:'Fiscal',c:'#D97706',bg:'#FFFBEB',bd:'#FDE68A'},custo:{l:'Módulo de custo',c:'#BE185D',bg:'#FDF2F8',bd:'#F9A8D4'},erp:{l:'ERP',c:'#2563EB',bg:'#EFF6FF',bd:'#BFDBFE'},app_web:{l:'APP Web',c:'#7C3AED',bg:'#F5F3FF',bd:'#DDD6FE'},terminal:{l:'Terminal de etiqueta',c:'#EA580C',bg:'#FFF7ED',bd:'#FDBA74'}}
+const PROC_TIPO={comercial:{l:'Comercial',c:'#2563EB',bg:'#EFF6FF',bd:'#BFDBFE'},financeiro:{l:'Financeiro',c:'#059669',bg:'#ECFDF5',bd:'#A7F3D0'},fiscal:{l:'Fiscal',c:'#D97706',bg:'#FFFBEB',bd:'#FDE68A'},estoque:{l:'Estoque',c:'#EA580C',bg:'#FFF7ED',bd:'#FDBA74'},producao:{l:'Produção',c:'#7C3AED',bg:'#F5F3FF',bd:'#DDD6FE'},operacional:{l:'Operacional',c:'#0891B2',bg:'#ECFEFF',bd:'#A5F3FC'},rh:{l:'RH',c:'#BE185D',bg:'#FDF2F8',bd:'#F9A8D4'}}
 const AVC=n=>{const i=(n?.charCodeAt(0)||0)%5;return[['#2563EB','#DBEAFE'],['#059669','#D1FAE5'],['#7C3AED','#EDE9FE'],['#D97706','#FEF3C7'],['#DC2626','#FEE2E2']][i]}
 
 // ── UTILS ────────────────────────────────────────────────────
@@ -614,48 +615,70 @@ function openNoticeModal(){
 function buildUpdates(){
   const isA=CP?.role==='admin'
   const w=el('div','page')
-  const h=ap(el('div','flex aic jcsb mb20'),ap(el('h2','',{fontSize:'16px',fontWeight:'700'}),'Atualizações'))
+  const h=ap(el('div','flex aic jcsb mb20'),ap(el('h2','',{fontSize:'16px',fontWeight:'700'}),'Atualizações do Sistema'))
   if(isA){const nb=ap(el('button','btn btn-p btn-sm'),'+ Nova atualização');nb.onclick=openUpdateModal;h.appendChild(nb)}
   w.appendChild(h)
   if(!updates.length){
-    ap(w,ap(el('div','empty'),ap(el('div','empty-ic'),'🎓'),ap(el('div','empty-t'),'Nenhuma atualização'),ap(el('div','empty-s'),'O administrador ainda não publicou nenhum conteúdo.')))
+    ap(w,ap(el('div','empty'),ap(el('div','empty-ic'),'🎓'),ap(el('div','empty-t'),'Nenhuma atualização'),ap(el('div','empty-s'),'Nenhuma atualização publicada ainda.')))
     return w
   }
   updates.forEach(u=>{
     const viewed=u.viewedBy?.some(v=>v.uid===CU.uid)
     const viewerCount=u.viewedBy?.length||0
-    const totalUsers=users.length||1
-    const uc=el('div','update-c')
-    // Header
-    const uh=el('div','update-h')
-    const ul=el('div','',{flex:'1'})
-    const utags=el('div','flex g6 mb8 flex',{flexWrap:'wrap',alignItems:'center'})
-    const typeCfg={video:{l:'📹 Vídeo',c:'#DC2626',bg:'#FEF2F2',bd:'#FECACA'},pdf:{l:'📄 PDF',c:'#2563EB',bg:'#EFF6FF',bd:'#BFDBFE'},text:{l:'📝 Texto',c:'#059669',bg:'#ECFDF5',bd:'#A7F3D0'}}[u.type]||{l:'Conteúdo',c:'#64748B',bg:'#F8FAFC',bd:'#E2E8F0'}
-    ap(utags,tag_({c:typeCfg.c,bg:typeCfg.bg,bd:typeCfg.bd},typeCfg.l))
+    const isNew=!viewed
+
+    const uc=el('div','update-c',{border:isNew?'2px solid var(--blue)':'1px solid var(--brd)',position:'relative'})
+
+    // Badge NOVO
+    if(isNew){
+      const badge=ap(el('div','',{
+        position:'absolute',top:'-10px',left:'18px',
+        background:'var(--blue)',color:'#fff',fontSize:'10px',fontWeight:'700',
+        padding:'2px 10px',borderRadius:'10px',letterSpacing:'.5px',zIndex:'1'
+      }),'● NOVO')
+      uc.appendChild(badge)
+    }
+
+    // Header do card
+    const uh=el('div','update-h',{paddingTop:isNew?'20px':'16px'})
+    const ul=el('div','',{flex:'1',minWidth:'0'})
+
+    // Tags de categorias
+    const utags=el('div','flex g4 mb8',{flexWrap:'wrap',alignItems:'center'})
+    const typeCfg={video:{l:'📹 Vídeo',c:'#DC2626',bg:'#FEF2F2',bd:'#FECACA'},storage_video:{l:'📹 Vídeo',c:'#DC2626',bg:'#FEF2F2',bd:'#FECACA'},pdf:{l:'📄 PDF',c:'#2563EB',bg:'#EFF6FF',bd:'#BFDBFE'},text:{l:'📝 Texto',c:'#059669',bg:'#ECFDF5',bd:'#A7F3D0'},none:{l:null}}[u.type]||{l:null}
+    if(typeCfg.l)ap(utags,tag_({c:typeCfg.c,bg:typeCfg.bg,bd:typeCfg.bd},typeCfg.l))
+    if(u.procTipo&&PROC_TIPO[u.procTipo])ap(utags,tag_(PROC_TIPO[u.procTipo],PROC_TIPO[u.procTipo].l))
     if(u.devCat&&DEV_CAT[u.devCat])ap(utags,tag_(DEV_CAT[u.devCat],DEV_CAT[u.devCat].l))
     if(u.devMod&&DEV_MOD[u.devMod])ap(utags,tag_(DEV_MOD[u.devMod],DEV_MOD[u.devMod].l))
-    if(viewed)ap(utags,tag_({c:'#059669',bg:'#ECFDF5',bd:'#A7F3D0'},'✓ Visto'))
-    else ap(utags,tag_({c:'#D97706',bg:'#FFFBEB',bd:'#FDE68A'},'Novo'))
-    ap(ul,utags,ap(el('h3','',{fontSize:'15px',fontWeight:'700',marginBottom:'4px'}),u.title),ap(el('p','f12 tc2'),`Por ${u.createdByName} · ${ago(u.createdAt)}`))
-    const ur=el('div','flex',{flexDirection:'column',alignItems:'flex-end',gap:'4px',flexShrink:'0'})
-    if(u.description)ap(ul,ap(el('p','f12 tc2',{marginTop:'6px',lineHeight:'1.6'}),u.description))
-    if(isA){const del=ap(el('button','btn btn-d btn-xs'),'Excluir');del.onclick=async()=>{if(confirm('Excluir atualização?'))await deleteDoc(doc(db,'updates',u.id))};ur.appendChild(del)}
+    if(u.version)ap(utags,ap(el('span','tag',{background:'#F8FAFC',color:'#475569',borderColor:'#CBD5E1'}),'v'+u.version))
+    ul.appendChild(utags)
+
+    // Título + nome da tela
+    ap(ul,ap(el('h3','',{fontSize:'15px',fontWeight:'700',marginBottom:'3px',color:'var(--t1)'}),u.title))
+    if(u.screenName)ap(ul,ap(el('p','f12 tc2',{marginBottom:'4px'}),'🖥 Tela: '+u.screenName))
+    if(u.description)ap(ul,ap(el('p','f12 tc2',{lineHeight:'1.6'}),u.description))
+
+    // Autor + data/hora (canto)
+    const ur=el('div','',{textAlign:'right',flexShrink:'0',marginLeft:'12px'})
+    const ts=u.createdAt?.toDate?.()||new Date()
+    ap(ur,
+      ap(el('div','f11 tc3',{marginBottom:'2px'}),u.createdByName||''),
+      ap(el('div','f11 tc3'),ts.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'})),
+      ap(el('div','f11 tc3',{fontWeight:'600',color:'var(--t2)'}),ts.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}))
+    )
     ap(uh,ul,ur);uc.appendChild(uh)
-    // Media
-    const media=buildMedia(u.type,u.url,u.content)
+
+    // Mídia
+    const media=buildMedia(u.type,u.url||'','')
     if(media)uc.appendChild(media)
-    // Footer
+
+    // Rodapé
     const uf=el('div','update-foot')
-    // Viewers
-    const vw=el('div','viewers')
-    const vwLabel=ap(el('span','f12 tc2'),`${viewerCount} de ${totalUsers} ${totalUsers===1?'pessoa':'pessoas'} ${viewerCount===1?'viu':'viram'}`)
-    ap(vw,vwLabel)
+    const vw=el('div','flex aic g8')
+    ap(vw,ap(el('span','f12 tc2'),viewerCount+' de '+(users.length||1)+' '+(viewerCount===1?'pessoa viu':'pessoas viram')))
     if(u.viewedBy?.length){
-      const avWrap=el('div','flex',{marginLeft:'8px'})
-      u.viewedBy.slice(0,5).forEach(v=>{
-        const a=av(v.name,22);a.style.marginLeft='-6px';a.title=v.name+' ('+ago(v.viewedAt)+')';avWrap.appendChild(a)
-      })
-      if(u.viewedBy.length>5)ap(avWrap,ap(el('span','f11 tc3',{marginLeft:'4px'}),'+'+( u.viewedBy.length-5)))
+      const avWrap=el('div','flex',{marginLeft:'4px'})
+      u.viewedBy.slice(0,5).forEach((v,i)=>{const a=av(v.name,20);a.style.marginLeft=i>0?'-5px':'0';a.title=v.name;avWrap.appendChild(a)})
       vw.appendChild(avWrap)
     }
     ap(uf,vw)
@@ -667,116 +690,12 @@ function buildUpdates(){
       }
       uf.appendChild(confirmBtn)
     }
+    if(isA){const del=ap(el('button','btn btn-d btn-xs'),'Excluir');del.onclick=async()=>{if(confirm('Excluir esta atualização?'))await deleteDoc(doc(db,'updates',u.id))};uf.appendChild(del)}
     uc.appendChild(uf)
     w.appendChild(uc)
   })
   return w
 }
-function openUpdateModal(){
-  let f={title:'',type:'none',url:'',content:'',description:'',devCat:'',devMod:''}
-  let selectedFile=null
-  const ov=el('div','overlay');const mo=el('div','modal')
-  const mh=ap(el('div','modal-h'),ap(el('div','modal-t'),'Nova atualização'))
-  const x=ap(el('button','modal-x'),'×');x.onclick=()=>ov.remove();mh.appendChild(x)
-  const mb=el('div','modal-b')
-
-  const tg=ap(el('div','form-g'),ap(el('label','form-l'),'Título *'))
-  const ti=el('input','');ti.placeholder='Ex: Nova funcionalidade de NF-e';ti.oninput=e=>f.title=e.target.value;tg.appendChild(ti)
-
-  const dg=ap(el('div','form-g'),ap(el('label','form-l'),'Descrição (opcional)'))
-  const di=el('textarea','',{resize:'vertical'});di.rows=2;di.placeholder='Breve descrição...';di.oninput=e=>f.description=e.target.value;dg.appendChild(di)
-
-  // Material
-  const matg=ap(el('div','form-g'),ap(el('label','form-l'),'Material'))
-  const matSel=el('select','')
-  matSel.innerHTML='<option value="none">Não</option><option value="pdf">Sim, PDF</option><option value="upload">Sim, Vídeo</option>'
-  matg.appendChild(matSel)
-
-  // PDF link
-  const pdfg=ap(el('div','form-g',{display:'none'}),ap(el('label','form-l'),'Link do PDF (Google Drive)'))
-  const pdfi=el('input','');pdfi.placeholder='https://drive.google.com/...';pdfi.oninput=e=>f.url=e.target.value;pdfg.appendChild(pdfi)
-
-  // Upload vídeo
-  const uploadg=el('div','form-g',{display:'none'})
-  ap(uploadg,ap(el('label','form-l'),'Selecionar vídeo'))
-  const fileInput=el('input','')
-  fileInput.type='file';fileInput.accept='video/*'
-  fileInput.style.cssText='padding:8px;background:#F1F5F9;border:2px dashed #CBD5E1;border-radius:8px;cursor:pointer;width:100%'
-  fileInput.onchange=e=>{selectedFile=e.target.files[0];if(selectedFile){fileNameEl.textContent='✓ '+selectedFile.name+' ('+Math.round(selectedFile.size/1024/1024*10)/10+' MB)';fileNameEl.style.color='var(--green)'}}
-  const fileNameEl=ap(el('p','f12 tc3',{marginTop:'6px'}),'Nenhum arquivo selecionado')
-  const progressg=el('div','',{display:'none',marginTop:'8px'})
-  const progressBar=el('div','',{height:'6px',background:'#E2E8F0',borderRadius:'3px',overflow:'hidden',marginBottom:'4px'})
-  const progressFill=el('div','',{height:'6px',background:'var(--blue)',borderRadius:'3px',width:'0%',transition:'width .3s'})
-  const progressTxt=ap(el('p','f11 tc2'),'Enviando...')
-  progressBar.appendChild(progressFill);ap(progressg,progressBar,progressTxt)
-  ap(uploadg,fileInput,fileNameEl,progressg)
-
-  matSel.onchange=()=>{
-    f.type=matSel.value
-    pdfg.style.display=f.type==='pdf'?'':'none'
-    uploadg.style.display=f.type==='upload'?'':'none'
-  }
-
-  ap(mb,tg,dg,matg,pdfg,uploadg)
-
-  // Categorias
-  const catRow=el('div','form-row',{marginTop:'4px'})
-  const catg=ap(el('div','form-g',{marginBottom:'0'}),ap(el('label','form-l'),'Tipo de desenvolvimento'))
-  const cats=el('select','')
-  cats.innerHTML='<option value="">— Selecione —</option>'+Object.entries(DEV_CAT).map(([k,v])=>`<option value="${k}">${v.l}</option>`).join('')
-  cats.onchange=e=>f.devCat=e.target.value;catg.appendChild(cats)
-
-  const modg=ap(el('div','form-g',{marginBottom:'0'}),ap(el('label','form-l'),'Módulo'))
-  const mods=el('select','')
-  mods.innerHTML='<option value="">— Selecione —</option>'+Object.entries(DEV_MOD).map(([k,v])=>`<option value="${k}">${v.l}</option>`).join('')
-  mods.onchange=e=>f.devMod=e.target.value;modg.appendChild(mods)
-
-  ap(catRow,catg,modg);mb.appendChild(catRow)
-
-  const mf=el('div','modal-f')
-  const can=ap(el('button','btn btn-s'),'Cancelar');can.onclick=()=>ov.remove()
-  const cr=ap(el('button','btn btn-p'),'Publicar')
-
-  cr.onclick=async()=>{
-    if(!f.title.trim())return
-    cr.disabled=true;cr.textContent='Publicando...'
-    try{
-      let finalUrl=f.url||''
-      let finalType=f.type
-
-      if(f.type==='upload'&&selectedFile){
-        finalType='storage_video'
-        progressg.style.display=''
-        const storageRef=ref(storage,'updates/'+Date.now()+'_'+selectedFile.name)
-        const uploadTask=uploadBytesResumable(storageRef,selectedFile)
-        await new Promise((resolve,reject)=>{
-          uploadTask.on('state_changed',
-            snap=>{const pct=Math.round(snap.bytesTransferred/snap.totalBytes*100);progressFill.style.width=pct+'%';progressTxt.textContent='Enviando... '+pct+'%'},
-            err=>reject(err),
-            async()=>{finalUrl=await getDownloadURL(uploadTask.snapshot.ref);resolve()}
-          )
-        })
-        progressTxt.textContent='✓ Upload concluído!'
-      }
-
-      await addDoc(collection(db,'updates'),{
-        title:f.title,type:finalType,url:finalUrl,
-        content:f.content||'',description:f.description||'',
-        devCat:f.devCat||'',devMod:f.devMod||'',
-        createdBy:CU.uid,createdByName:CP.name,
-        createdAt:serverTimestamp(),
-        viewedBy:[{uid:CU.uid,name:CP.name,viewedAt:new Date().toISOString()}]
-      })
-      ov.remove()
-    }catch(e){
-      alert('Erro ao publicar: '+e.message)
-      cr.disabled=false;cr.textContent='Publicar'
-    }
-  }
-
-  ap(mf,can,cr);ap(mo,mh,mb,mf);ov.appendChild(mo);document.body.appendChild(ov)
-}
-
 
 function buildProspects(){
   const w=el('div','page')

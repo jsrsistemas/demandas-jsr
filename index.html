@@ -373,7 +373,7 @@ function buildSidebar(){
   const isA=CP?.role==='admin'
   const sb=el('div','sb')
   const logo=el('div','sb-logo')
-  ap(logo,ap(el('div','sb-logo-icon'),'D'),ap(el('div',''),ap(el('div','sb-logo-text'),'DemandFlow'),ap(el('div','sb-logo-sub'),'Central da Equipe · v4.5 ✦')))
+  ap(logo,ap(el('div','sb-logo-icon'),'D'),ap(el('div',''),ap(el('div','sb-logo-text'),'DemandFlow'),ap(el('div','sb-logo-sub'),'Central da Equipe · v4.6 ✦')))
   sb.appendChild(logo)
   const nav=el('div','sb-nav')
   ap(nav,ap(el('div','sb-sec'),'Menu'))
@@ -640,26 +640,27 @@ function buildUpdates(){
 
   // Cabeçalho
   const cols=[
-    {l:'',w:'32px'},
-    {l:'Título',w:'220px'},
+    {l:'',w:'36px'},
+    {l:'Título',w:'200px'},
     {l:'Processo',w:'110px'},
-    {l:'Tela',w:'130px'},
-    {l:'Versão',w:'70px'},
-    {l:'Tipo Dev',w:'130px'},
-    {l:'Módulo',w:'130px'},
-    {l:'Descrição',w:'180px'},
-    {l:'Material',w:'70px'},
-    {l:'Publicado por',w:'130px'},
-    {l:'Visto',w:'80px'},
-    ...(isA?[{l:'',w:'70px'}]:[]),
+    {l:'Tela',w:'120px'},
+    {l:'Versão',w:'65px'},
+    {l:'Tipo Dev',w:'120px'},
+    {l:'Módulo',w:'120px'},
+    {l:'Descrição',w:'160px'},
+    {l:'📎',w:'45px'},
+    {l:'Publicado',w:'110px'},
+    {l:'Visto',w:'90px'},
+    ...(isA?[{l:'',w:'65px'}]:[]),
   ]
   const thead=el('thead')
   const hr=el('tr','',{background:'#F8FAFC'})
   cols.forEach(c=>{
     const th=ap(el('th','',{
-      padding:'9px 10px',textAlign:'left',fontWeight:'600',fontSize:'11px',
-      color:'var(--t2)',borderBottom:'2px solid var(--brd)',
-      whiteSpace:'nowrap',width:c.w,position:'sticky',top:'0',background:'#F8FAFC'
+      padding:'10px 10px',textAlign:'left',fontWeight:'600',fontSize:'11px',
+      color:'#475569',borderBottom:'2px solid var(--brd)',
+      whiteSpace:'nowrap',width:c.w,background:'#F8FAFC',
+      textTransform:'uppercase',letterSpacing:'.4px'
     }),c.l)
     hr.appendChild(th)
   })
@@ -781,19 +782,19 @@ function buildUpdates(){
     let nf={title:'',procTipo:'',screenName:'',version:'',devCat:'',devMod:'',description:''}
     const tr=el('tr','',{background:'#EFF6FF'});tr.setAttribute('data-new','1')
 
-    // Badge col
-    const newTd=el('td','',{padding:'6px 4px 6px 10px',borderBottom:'1px solid var(--blueb)'})
-    tr.appendChild(newTd)
+    const newTd2=el('td','',{padding:'6px 8px',borderBottom:'2px solid var(--blue)',background:'#EFF6FF',textAlign:'center'})
+    const newLabel=ap(el('span','',{fontSize:'9px',fontWeight:'700',color:'var(--blue)'}),'+')
+    newTd2.appendChild(newLabel);tr.appendChild(newTd2)
 
     // Inputs inline
     const mkInp=(ph,key,w)=>{
-      const td=el('td','',{padding:'4px 6px',borderBottom:'1px solid var(--blueb)'})
-      const inp=el('input','',{fontSize:'12px',padding:'5px 8px',border:'1px solid var(--blueb)',borderRadius:'6px',width:w||'100%'})
+      const td=el('td','',{padding:'6px 8px',borderBottom:'2px solid var(--blue)',background:'#EFF6FF'})
+      const inp=el('input','',{fontSize:'12px',padding:'6px 9px',border:'1px solid var(--blueb)',borderRadius:'6px',width:w||'100%',background:'#fff'})
       inp.placeholder=ph;inp.oninput=e=>nf[key]=e.target.value;td.appendChild(inp);return td
     }
     const mkSel=(opts,key)=>{
-      const td=el('td','',{padding:'4px 6px',borderBottom:'1px solid var(--blueb)'})
-      const sel=el('select','',{fontSize:'11px',padding:'5px 6px',border:'1px solid var(--blueb)',borderRadius:'6px',width:'100%'})
+      const td=el('td','',{padding:'6px 8px',borderBottom:'2px solid var(--blue)',background:'#EFF6FF'})
+      const sel=el('select','',{fontSize:'11px',padding:'6px 7px',border:'1px solid var(--blueb)',borderRadius:'6px',width:'100%',background:'#fff'})
       sel.innerHTML='<option value="">—</option>'+Object.entries(opts).map(([k,v])=>`<option value="${k}">${v.l}</option>`).join('')
       sel.onchange=e=>nf[key]=e.target.value;td.appendChild(sel);return td
     }
@@ -802,30 +803,38 @@ function buildUpdates(){
     titleTd.querySelector('input').style.fontWeight='500'
     ap(tr,titleTd,mkSel(PROC_TIPO,'procTipo'),mkInp('Nome da tela','screenName'),mkInp('Versão','version','60px'),mkSel(DEV_CAT,'devCat'),mkSel(DEV_MOD,'devMod'))
 
-    const descTd=el('td','',{padding:'4px 6px',borderBottom:'1px solid var(--blueb)'})
-    const descInp=el('input','',{fontSize:'11px',padding:'5px 8px',border:'1px solid var(--blueb)',borderRadius:'6px',width:'100%'})
+    const descTd=el('td','',{padding:'6px 8px',borderBottom:'2px solid var(--blue)',background:'#EFF6FF'})
+    const descInp=el('input','',{fontSize:'11px',padding:'6px 9px',border:'1px solid var(--blueb)',borderRadius:'6px',width:'100%',background:'#fff'})
     descInp.placeholder='Descrição...';descInp.oninput=e=>nf.description=e.target.value;descTd.appendChild(descInp);tr.appendChild(descTd)
 
     // Material col placeholder
-    const matTd=el('td','',{padding:'4px 6px',borderBottom:'1px solid var(--blueb)',textAlign:'center',color:'var(--t3)',fontSize:'11px'});matTd.textContent='Após salvar';tr.appendChild(matTd)
+    const matTd=el('td','',{padding:'6px 8px',borderBottom:'2px solid var(--blue)',background:'#EFF6FF',textAlign:'center',color:'var(--t3)',fontSize:'10px'});matTd.textContent='Após salvar';tr.appendChild(matTd)
 
     // Empty cols
-    ;[el('td','',{borderBottom:'1px solid var(--blueb)'}),el('td','',{borderBottom:'1px solid var(--blueb)'})].forEach(td=>tr.appendChild(td))
+    ;[
+      el('td','',{borderBottom:'2px solid var(--blue)',background:'#EFF6FF'}),
+      el('td','',{borderBottom:'2px solid var(--blue)',background:'#EFF6FF'})
+    ].forEach(td=>tr.appendChild(td))
 
     // Salvar/Cancelar
-    const actTd=el('td','',{padding:'4px 8px',borderBottom:'1px solid var(--blueb)'})
+    const actTd=el('td','',{padding:'6px 8px',borderBottom:'2px solid var(--blue)',background:'#EFF6FF'})
     const saveBtn=ap(el('button','btn btn-p btn-xs'),'Salvar')
     const cancelBtn=ap(el('button','btn btn-s btn-xs'),'×')
     saveBtn.onclick=async()=>{
-      if(!nf.title.trim()){titleTd.querySelector('input').style.borderColor='var(--red)';return}
+      if(!nf.title.trim()){titleTd.querySelector('input').focus();titleTd.querySelector('input').style.borderColor='var(--red)';return}
       saveBtn.disabled=true;saveBtn.textContent='...'
-      await addDoc(collection(db,'updates'),{
-        ...nf,type:'none',url:'',imageUrl:'',
-        createdBy:CU.uid,createdByName:CP.name,
-        createdAt:serverTimestamp(),
-        viewedBy:[{uid:CU.uid,name:CP.name,viewedAt:new Date().toISOString()}]
-      })
-      tr.remove()
+      try{
+        await addDoc(collection(db,'updates'),{
+          ...nf,type:'none',url:'',imageUrl:'',
+          createdBy:CU.uid,createdByName:CP.name,
+          createdAt:serverTimestamp(),
+          viewedBy:[{uid:CU.uid,name:CP.name,viewedAt:new Date().toISOString()}]
+        })
+        tr.remove()
+      }catch(e){
+        alert('Erro ao salvar: '+e.message+'\n\nVerifique se as regras do Firestore foram atualizadas.')
+        saveBtn.disabled=false;saveBtn.textContent='Salvar'
+      }
     }
     cancelBtn.onclick=()=>tr.remove()
     ap(actTd,el('div','flex g4',{}));actTd.lastChild.appendChild(saveBtn);actTd.lastChild.appendChild(cancelBtn)

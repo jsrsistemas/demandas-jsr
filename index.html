@@ -750,61 +750,65 @@ function buildProspects(){
   kbWrap.appendChild(kb);w.appendChild(kbWrap);return w
 }
 function openProspectReport(){
-  // Modal de opções antes de gerar
-  const ov=el('div','overlay');const mo=el('div','modal')
-  const mh=ap(el('div','modal-h'),ap(el('div','modal-t'),'📊 Gerar Relatório de Prospects'))
+  const ov=el('div','overlay')
+  const mo=el('div','modal')
+
+  const mh=ap(el('div','modal-h'),ap(el('div','modal-t'),'📊 Gerar Relatório'))
   const x=ap(el('button','modal-x'),'×');x.onclick=()=>ov.remove();mh.appendChild(x)
+
   const mb=el('div','modal-b')
+  ap(mb,ap(el('p','f13 tc2',{marginBottom:'12px'}),'Escolha como ordenar:'))
 
-  let sortBy='status' // default
+  // Seletor de ordenação simples
+  const sel=el('select','',{width:'100%',marginBottom:'14px',padding:'10px 12px',fontSize:'13px',borderRadius:'8px',border:'1px solid var(--brd)'})
+  sel.innerHTML=`
+    <option value="status">📋 Por status (agrupa por etapa)</option>
+    <option value="name">🔤 Por nome A-Z</option>
+    <option value="company">🏢 Por empresa A-Z</option>
+    <option value="value">💰 Por valor (maior primeiro)</option>
+    <option value="date">🕐 Por data (mais recente)</option>
+  `
+  mb.appendChild(sel)
 
-  ap(mb,ap(el('p','f13 tc2 mb12'),'Escolha como ordenar os prospects no relatório:'))
+  ap(mb,ap(el('p','f12 fw6 tc2',{marginBottom:'6px'}),'Filtrar por status (opcional):'))
+  const fw=el('div','',{display:'flex',gap:'6px',flexWrap:'wrap',marginBottom:'4px'})
 
-  const opts=[
-    {v:'status',l:'📋 Por status',d:'Agrupa por etapa do pipeline (1° Contato → Fechado)'},
-    {v:'name',l:'🔤 Por nome A-Z',d:'Ordem alfabética pelo nome do contato'},
-    {v:'company',l:'🏢 Por empresa A-Z',d:'Ordem alfabética pelo nome da empresa'},
-    {v:'value',l:'💰 Por valor (maior primeiro)',d:'Prospects com maior valor estimado aparecem primeiro'},
-    {v:'date',l:'🕐 Por data (mais recente)',d:'Mais recentes no topo'},
-  ]
-
-  const optEls=opts.map(o=>{
-    const wrap=el('div','',{border:'1px solid var(--brd)',borderRadius:'9px',padding:'10px 14px',marginBottom:'8px',cursor:'pointer',transition:'all .15s'})
-    const top=ap(el('div','flex aic g8'),ap(el('input',''),{type:'radio',name:'sort',value:o.v,style:'width:auto;flex-shrink:0'}))
-    top.children[0].id='sort-'+o.v;if(o.v==='status')top.children[0].checked=true
-    top.children[0].onchange=()=>{sortBy=o.v;optEls.forEach(e=>Object.assign(e.style,{borderColor:'var(--brd)',background:'transparent'}));Object.assign(wrap.style,{borderColor:'var(--blue)',background:'var(--bluel)'})}
-    ap(top,ap(el('label','fw6 f13',{cursor:'pointer',flex:'1'}),o.l));wrap.appendChild(top)
-    ap(wrap,ap(el('p','f11 tc3',{marginLeft:'24px',marginTop:'3px'}),o.d))
-    wrap.onclick=()=>{top.children[0].checked=true;top.children[0].dispatchEvent(new Event('change'))}
-    if(o.v==='status')Object.assign(wrap.style,{borderColor:'var(--blue)',background:'var(--bluel)'})
-    return wrap
-  })
-  optEls.forEach(e=>mb.appendChild(e))
-
-  // Filtro por status
-  ap(mb,ap(el('div','f12 fw6 tc2',{marginTop:'14px',marginBottom:'6px'}),'Filtrar por status (opcional):'))
-  const filterWrap=el('div','flex g6',{flexWrap:'wrap'})
   let filterStatus=new Set(['all'])
-  const allBtn=ap(el('button','btn btn-p btn-sm'),'Todos')
-  allBtn.onclick=()=>{filterStatus=new Set(['all']);updateFilterBtns()}
-  filterWrap.appendChild(allBtn)
-  const statusBtns=Object.entries(PST).map(([k,v])=>{
-    const b=ap(el('button','btn btn-s btn-sm',{borderColor:v.bd,color:v.c}),v.l)
-    b.onclick=()=>{filterStatus.delete('all');if(filterStatus.has(k))filterStatus.delete(k);else filterStatus.add(k);if(filterStatus.size===0)filterStatus.add('all');updateFilterBtns()}
-    return{k,v,b}
+
+  const allB=ap(el('button','btn btn-p btn-sm'),'Todos')
+  fw.appendChild(allB)
+
+  const sBtns=Object.entries(PST).map(([k,v])=>{
+    const b=ap(el('button','btn btn-s btn-sm'),v.l)
+    b.style.borderColor=v.bd;b.style.color=v.c
+    b.onclick=()=>{
+      filterStatus.delete('all')
+      if(filterStatus.has(k))filterStatus.delete(k)
+      else filterStatus.add(k)
+      if(filterStatus.size===0)filterStatus.add('all')
+      refresh()
+    }
+    fw.appendChild(b);return{k,v,b}
   })
-  statusBtns.forEach(x=>filterWrap.appendChild(x.b))
-  mb.appendChild(filterWrap)
-  function updateFilterBtns(){
+
+  function refresh(){
     const isAll=filterStatus.has('all')
-    allBtn.className='btn btn-sm '+(isAll?'btn-p':'btn-s')
-    statusBtns.forEach(({k,v,b})=>{const on=!isAll&&filterStatus.has(k);b.style.background=on?v.bg:'transparent';b.style.color=on?v.c:'var(--t2)';b.style.borderColor=on?v.c:'var(--brd)';b.style.fontWeight=on?'600':'400'})
+    allB.className='btn btn-sm '+(isAll?'btn-p':'btn-s')
+    sBtns.forEach(({k,v,b})=>{
+      const on=!isAll&&filterStatus.has(k)
+      b.style.background=on?v.bg:'transparent'
+      b.style.color=on?v.c:'var(--t2)'
+      b.style.borderColor=on?v.c:'var(--brd)'
+      b.style.fontWeight=on?'600':'400'
+    })
   }
+  allB.onclick=()=>{filterStatus=new Set(['all']);refresh()}
+  mb.appendChild(fw)
 
   const mf=el('div','modal-f')
   const can=ap(el('button','btn btn-s'),'Cancelar');can.onclick=()=>ov.remove()
   const gen=ap(el('button','btn btn-p'),'Gerar relatório →')
-  gen.onclick=()=>{ov.remove();generateReport(sortBy,filterStatus)}
+  gen.onclick=()=>{ov.remove();generateReport(sel.value,filterStatus)}
   ap(mf,can,gen);ap(mo,mh,mb,mf);ov.appendChild(mo);document.body.appendChild(ov)
 }
 

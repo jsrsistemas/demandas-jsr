@@ -149,7 +149,15 @@ input:focus,select:focus,textarea:focus{border-color:var(--blue);box-shadow:0 0 
 .viewer-av:first-child{margin-left:0}
 
 /* ─── PROSPECTS ──────────────────────────── */
-.kanban{display:flex;gap:12px;overflow-x:auto;padding-bottom:12px;align-items:flex-start;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
+.kanban-wrap{position:relative}
+.kanban{display:flex;gap:12px;overflow-x:auto;padding-bottom:16px;align-items:flex-start;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:thin;scrollbar-color:#CBD5E1 #F1F5F9}
+.kanban::-webkit-scrollbar{height:6px}
+.kanban::-webkit-scrollbar-track{background:#F1F5F9;border-radius:3px}
+.kanban::-webkit-scrollbar-thumb{background:#CBD5E1;border-radius:3px}
+.kanban::-webkit-scrollbar-thumb:hover{background:#94A3B8}
+.kb-nav{display:flex;align-items:center;gap:8px;margin-bottom:10px;justify-content:flex-end}
+.kb-nav-btn{width:32px;height:32px;border-radius:8px;border:1px solid var(--brd);background:var(--card);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:all .15s;color:var(--t2)}
+.kb-nav-btn:hover{background:var(--blue);color:#fff;border-color:var(--blue)}
 .kb-col{background:var(--card);border:1px solid var(--brd);border-radius:var(--r);width:210px;flex-shrink:0;box-shadow:var(--sh);scroll-snap-align:start}
 .kb-col-h{padding:11px 13px;border-bottom:1px solid var(--brd);display:flex;align-items:center;gap:7px}
 .kb-col-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
@@ -704,7 +712,16 @@ function buildProspects(){
   const hint=ap(el('div','f11 tc3 mb8',{display:'none'}),'← Deslize para ver mais colunas →')
   if(window.innerWidth<=768)hint.style.display='block'
   w.appendChild(hint)
+  // Navegação do kanban
+  const kbWrap=el('div','kanban-wrap')
+  const kbNav=el('div','kb-nav')
+  const kbInfo=ap(el('span','f11 tc3',{flex:'1'}),'← '+Object.keys(PST).length+' colunas — deslize ou use as setas →')
+  const kbLeft=ap(el('button','kb-nav-btn'),'←')
+  const kbRight=ap(el('button','kb-nav-btn'),'→')
+  ap(kbNav,kbInfo,kbLeft,kbRight);kbWrap.appendChild(kbNav)
   const kb=el('div','kanban')
+  kbLeft.onclick=()=>kb.scrollBy({left:-240,behavior:'smooth'})
+  kbRight.onclick=()=>kb.scrollBy({left:240,behavior:'smooth'})
   Object.entries(PST).forEach(([k,v])=>{
     const col=el('div','kb-col')
     const cnt=prospects.filter(p=>pstN(p.status)===k).length
@@ -730,7 +747,7 @@ function buildProspects(){
     })
     col.appendChild(cards);kb.appendChild(col)
   })
-  w.appendChild(kb);return w
+  kbWrap.appendChild(kb);w.appendChild(kbWrap);return w
 }
 function openProspectReport(){
   const now=new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'})
@@ -819,8 +836,21 @@ function openProspectModal(ex){
   const mf=el('div','modal-f')
   const can=ap(el('button','btn btn-s'),'Cancelar');can.onclick=()=>ov.remove()
   const cr=ap(el('button','btn btn-p'),ex?'Salvar':'Criar prospect')
-  cr.onclick=async()=>{if(!f.name.trim())return;cr.disabled=true;const data={name:f.name,companyName:f.companyName,contact:f.contact,howFound:f.howFound,indicatedBy:f.indicatedBy,status:f.status,statusContato:f.statusContato||'com_interacao',value:f.value?Number(f.value):null,segment:f.segment,qtdEmpresas:f.qtdEmpresas?Number(f.qtdEmpresas):null,notes:f.notes,updatedAt:serverTimestamp()};if(ex)await updateDoc(doc(db,'prospects',ex.id),data);else await addDoc(collection(db,'prospects'),{...data,createdBy:CU.uid,createdByName:CP.name,createdAt:serverTimestamp()});ov.remove()}
-  ap(mf,can,cr);ap(mo,mh,mb,mf);ov.appendChild(mo);document.body.appendChild(ov)
+  const saveMsg=el('span','f12',{color:'var(--red)',display:'none'})
+  cr.onclick=async()=>{
+    if(!f.name.trim()){saveMsg.textContent='Preencha o nome do contato.';saveMsg.style.display='block';return}
+    cr.disabled=true;cr.textContent='Salvando...';saveMsg.style.display='none'
+    try{
+      const data={name:f.name,companyName:f.companyName||'',contact:f.contact||'',howFound:f.howFound||'',indicatedBy:f.indicatedBy||'',status:f.status||'primeiro_contato',statusContato:f.statusContato||'com_interacao',value:f.value?Number(f.value):null,segment:f.segment||'',qtdEmpresas:f.qtdEmpresas?Number(f.qtdEmpresas):null,notes:f.notes||'',updatedAt:serverTimestamp()}
+      if(ex)await updateDoc(doc(db,'prospects',ex.id),data)
+      else await addDoc(collection(db,'prospects'),{...data,createdBy:CU.uid,createdByName:CP.name,createdAt:serverTimestamp()})
+      ov.remove()
+    }catch(e){
+      saveMsg.textContent='Erro ao salvar: '+e.message;saveMsg.style.display='block'
+      cr.disabled=false;cr.textContent=ex?'Salvar':'Criar prospect'
+    }
+  }
+  ap(mf,can,saveMsg,cr);ap(mo,mh,mb,mf);ov.appendChild(mo);document.body.appendChild(ov)
 }
 function openProspectDetail(p){
   const ov=el('div','overlay');const mo=el('div','modal')

@@ -894,9 +894,88 @@ function generateReport(sortBy,filterStatus){
   <script>window.onload=()=>window.print()<\/script>
   </body></html>`
 
-  const w=window.open('','_blank','width=1200,height=800')
-  if(w){w.document.write(html);w.document.close()}
-  else alert('Permita pop-ups no navegador para abrir o relatório.')
+  // Gera relatório em modal na própria página
+  const rov=el('div','overlay',{alignItems:'flex-start',paddingTop:'20px'})
+  const rmo=el('div','',{background:'#fff',borderRadius:'14px',width:'100%',maxWidth:'960px',maxHeight:'90vh',overflow:'auto',boxShadow:'0 25px 60px rgba(0,0,0,.25)',margin:'auto'})
+
+  // Header do relatório
+  const rh=el('div','',{background:'#0F172A',padding:'16px 24px',borderRadius:'14px 14px 0 0',display:'flex',alignItems:'center',justifyContent:'space-between',position:'sticky',top:'0',zIndex:'10'})
+  ap(rh,ap(el('span','',{color:'#fff',fontSize:'15px',fontWeight:'700'}),'📊 Relatório de Prospects'))
+  const rhbtns=el('div','flex g8')
+  const printBtn=ap(el('button','btn btn-p btn-sm'),'🖨️ Imprimir / Salvar PDF')
+  printBtn.onclick=()=>{
+    const style=document.createElement('style')
+    style.textContent='@media print{.no-print{display:none!important}body>*:not(#report-area){display:none!important}#report-area{display:block!important;position:fixed;inset:0;overflow:auto;background:#fff;z-index:9999}}'
+    document.head.appendChild(style)
+    rmo.id='report-area'
+    window.print()
+    setTimeout(()=>{document.head.removeChild(style);rmo.id=''},1000)
+  }
+  const closeBtn=ap(el('button','',{background:'rgba(255,255,255,.1)',border:'none',cursor:'pointer',color:'#fff',fontSize:'13px',padding:'5px 12px',borderRadius:'6px',fontFamily:'inherit'}),'✕ Fechar')
+  closeBtn.onclick=()=>rov.remove()
+  ap(rhbtns,printBtn,closeBtn);rh.appendChild(rhbtns);rmo.appendChild(rh)
+
+  // Conteúdo do relatório
+  const rc=el('div','',{padding:'24px',fontFamily:'Arial,sans-serif'})
+
+  // Stats
+  const nowStr=new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'})
+  ap(rc,ap(el('h2','',{fontSize:'18px',fontWeight:'700',marginBottom:'4px',color:'#0F172A'}),'Relatório de Prospects — JSR Sistemas'),ap(el('p','',{fontSize:'12px',color:'#64748B',marginBottom:'16px'}),`Gerado em ${nowStr} · ${data.length} prospect${data.length!==1?'s':''} · Ordenado por: ${sortLabels[sortBy]||sortBy}`))
+
+  const sg=el('div','',{display:'flex',gap:'12px',marginBottom:'20px',flexWrap:'wrap'})
+  ;[{v:data.length,l:'Total',c:'#2563EB'},{v:data.filter(p=>!['fechado','nao_fechado'].includes(pstN(p.status))).length,l:'Em andamento',c:'#D97706'},{v:data.filter(p=>pstN(p.status)==='fechado').length,l:'Fechados',c:'#059669'},{v:data.filter(p=>pstN(p.status)==='nao_fechado').length,l:'Não fechados',c:'#DC2626'},{v:totalValor>0?fmtMoney(totalValor):null,l:'Valor total',c:'#7C3AED'}].filter(s=>s.v!=null).forEach(s=>{
+    ap(sg,ap(el('div','',{background:'#F1F5F9',borderRadius:'8px',padding:'10px 14px',borderLeft:`3px solid ${s.c}`,minWidth:'110px'}),ap(el('div','',{fontSize:'20px',fontWeight:'700',color:s.c,lineHeight:'1',marginBottom:'2px'}),String(s.v)),ap(el('div','',{fontSize:'10px',color:'#64748B'}),s.l)))
+  })
+  rc.appendChild(sg)
+
+  // Tabela
+  const table=el('table','',{width:'100%',borderCollapse:'collapse',fontSize:'11px'})
+  const thead=el('thead','')
+  const hr=el('tr','')
+  ;['Nome','Empresa','Contato','Segmento','Como achou / Indicação','Status','Interação','Valor','Observações'].forEach(h=>{
+    const th=ap(el('th','',{background:'#1E293B',color:'#fff',padding:'8px 10px',textAlign:'left',fontWeight:'600',whiteSpace:'nowrap',fontSize:'11px'}),h)
+    hr.appendChild(th)
+  })
+  thead.appendChild(hr);table.appendChild(thead)
+  const tbody=el('tbody','')
+
+  if(sortBy==='status'){
+    Object.entries(PST).forEach(([k,v])=>{
+      const group=data.filter(p=>pstN(p.status)===k)
+      if(!group.length)return
+      const ghr=el('tr','')
+      const ghd=el('td','',{colspan:'9',background:v.bg,color:v.c,fontWeight:'700',fontSize:'12px',padding:'8px 10px',borderBottom:`2px solid ${v.bd}`})
+      ghd.setAttribute('colspan','9')
+      ghd.textContent=`${v.l} — ${group.length} prospect${group.length!==1?'s':''}`
+      ghr.appendChild(ghd);tbody.appendChild(ghr)
+      group.forEach((p,i)=>tbody.appendChild(buildTr(p,i)))
+    })
+  } else {
+    data.forEach((p,i)=>tbody.appendChild(buildTr(p,i)))
+  }
+
+  function buildTr(p,i){
+    const st=PST[pstN(p.status)]||PST.primeiro_contato
+    const sc=PSTC[p.statusContato]
+    const tr=el('tr','',{background:i%2===0?'#fff':'#F8FAFC'})
+    ;[p.name||'—',p.companyName||'—',p.contact||'—',p.segment||'—',p.howFound||p.indicatedBy||'—'].forEach(t=>{
+      ap(tr,ap(el('td','',{padding:'7px 10px',borderBottom:'1px solid #E2E8F0',fontSize:'11px'}),t))
+    })
+    const stTd=el('td','',{padding:'7px 10px',borderBottom:'1px solid #E2E8F0'})
+    ap(stTd,ap(el('span','',{background:st.bg,color:st.c,border:`1px solid ${st.bd}`,padding:'2px 7px',borderRadius:'4px',fontSize:'10px',fontWeight:'600',whiteSpace:'nowrap'}),st.l))
+    tr.appendChild(stTd)
+    const scTd=el('td','',{padding:'7px 10px',borderBottom:'1px solid #E2E8F0'})
+    if(sc)ap(scTd,ap(el('span','',{background:sc.bg,color:sc.c,border:`1px solid ${sc.bd}`,padding:'2px 7px',borderRadius:'4px',fontSize:'10px'}),sc.l))
+    else scTd.textContent='—'
+    tr.appendChild(scTd)
+    ap(tr,ap(el('td','',{padding:'7px 10px',borderBottom:'1px solid #E2E8F0',fontWeight:'600',color:'#059669',whiteSpace:'nowrap'}),p.value?fmtMoney(p.value):'—'),ap(el('td','',{padding:'7px 10px',borderBottom:'1px solid #E2E8F0',fontSize:'11px',color:'#64748B',maxWidth:'180px'}),p.notes||'—'))
+    return tr
+  }
+
+  table.appendChild(tbody);rc.appendChild(table)
+  ap(rc,ap(el('div','',{marginTop:'16px',fontSize:'10px',color:'#94A3B8',textAlign:'right',borderTop:'1px solid #E2E8F0',paddingTop:'8px'}),'DemandFlow · JSR Sistemas · '+nowStr))
+
+  rmo.appendChild(rc);rov.appendChild(rmo);document.body.appendChild(rov)
 }
 function openProspectModal(ex){
   let f=ex?{...ex}:{name:'',companyName:'',contact:'',howFound:'',indicatedBy:'',status:'primeiro_contato',statusContato:'com_interacao',value:'',segment:'',qtdEmpresas:'',notes:''}

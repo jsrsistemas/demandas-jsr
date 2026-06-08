@@ -373,7 +373,7 @@ function buildSidebar(){
   const isA=CP?.role==='admin'
   const sb=el('div','sb')
   const logo=el('div','sb-logo')
-  ap(logo,ap(el('div','sb-logo-icon'),'D'),ap(el('div',''),ap(el('div','sb-logo-text'),'DemandFlow'),ap(el('div','sb-logo-sub'),'Central da Equipe · v4.2 ✦')))
+  ap(logo,ap(el('div','sb-logo-icon'),'D'),ap(el('div',''),ap(el('div','sb-logo-text'),'DemandFlow'),ap(el('div','sb-logo-sub'),'Central da Equipe · v4.3 ✦')))
   sb.appendChild(logo)
   const nav=el('div','sb-nav')
   ap(nav,ap(el('div','sb-sec'),'Menu'))
@@ -615,86 +615,243 @@ function openNoticeModal(){
 function buildUpdates(){
   const isA=CP?.role==='admin'
   const w=el('div','page')
-  const h=ap(el('div','flex aic jcsb mb20'),ap(el('h2','',{fontSize:'16px',fontWeight:'700'}),'Atualizações do Sistema'))
-  if(isA){const nb=ap(el('button','btn btn-p btn-sm'),'+ Nova atualização');nb.onclick=openUpdateModal;h.appendChild(nb)}
+
+  // Botão no topo
+  const h=el('div','flex aic jcsb mb20')
+  ap(h,ap(el('h2','',{fontSize:'16px',fontWeight:'700'}),'Atualizações do Sistema'))
+  if(isA){
+    const nb=ap(el('button','btn btn-p btn-sm'),'+ Nova atualização')
+    nb.onclick=()=>openUpdateModal()
+    h.appendChild(nb)
+  }
   w.appendChild(h)
+
   if(!updates.length){
-    ap(w,ap(el('div','empty'),ap(el('div','empty-ic'),'🎓'),ap(el('div','empty-t'),'Nenhuma atualização'),ap(el('div','empty-s'),'Nenhuma atualização publicada ainda.')))
+    const emp=el('div','empty')
+    ap(emp,ap(el('div','empty-ic'),'🎓'),ap(el('div','empty-t'),'Nenhuma atualização'),ap(el('div','empty-s'),'O administrador ainda não publicou nenhuma atualização.'))
+    w.appendChild(emp)
     return w
   }
+
   updates.forEach(u=>{
     const viewed=u.viewedBy?.some(v=>v.uid===CU.uid)
     const viewerCount=u.viewedBy?.length||0
-    const isNew=!viewed
 
-    const uc=el('div','update-c',{border:isNew?'2px solid var(--blue)':'1px solid var(--brd)',position:'relative'})
+    // Card
+    const uc=el('div','update-c')
+    if(!viewed)uc.style.borderColor='var(--blue)'
 
-    // Badge NOVO
-    if(isNew){
-      const badge=ap(el('div','',{
-        position:'absolute',top:'-10px',left:'18px',
-        background:'var(--blue)',color:'#fff',fontSize:'10px',fontWeight:'700',
-        padding:'2px 10px',borderRadius:'10px',letterSpacing:'.5px',zIndex:'1'
-      }),'● NOVO')
-      uc.appendChild(badge)
-    }
-
-    // Header do card
-    const uh=el('div','update-h',{paddingTop:isNew?'20px':'16px'})
+    // Header
+    const uh=el('div','update-h')
     const ul=el('div','',{flex:'1',minWidth:'0'})
 
-    // Tags de categorias
-    const utags=el('div','flex g4 mb8',{flexWrap:'wrap',alignItems:'center'})
-    const typeCfg={video:{l:'📹 Vídeo',c:'#DC2626',bg:'#FEF2F2',bd:'#FECACA'},storage_video:{l:'📹 Vídeo',c:'#DC2626',bg:'#FEF2F2',bd:'#FECACA'},pdf:{l:'📄 PDF',c:'#2563EB',bg:'#EFF6FF',bd:'#BFDBFE'},text:{l:'📝 Texto',c:'#059669',bg:'#ECFDF5',bd:'#A7F3D0'},none:{l:null}}[u.type]||{l:null}
-    if(typeCfg.l)ap(utags,tag_({c:typeCfg.c,bg:typeCfg.bg,bd:typeCfg.bd},typeCfg.l))
-    if(u.procTipo&&PROC_TIPO[u.procTipo])ap(utags,tag_(PROC_TIPO[u.procTipo],PROC_TIPO[u.procTipo].l))
-    if(u.devCat&&DEV_CAT[u.devCat])ap(utags,tag_(DEV_CAT[u.devCat],DEV_CAT[u.devCat].l))
-    if(u.devMod&&DEV_MOD[u.devMod])ap(utags,tag_(DEV_MOD[u.devMod],DEV_MOD[u.devMod].l))
-    if(u.version)ap(utags,ap(el('span','tag',{background:'#F8FAFC',color:'#475569',borderColor:'#CBD5E1'}),'v'+u.version))
-    ul.appendChild(utags)
+    // Badge NOVO
+    if(!viewed){
+      const badge=el('span','tag',{background:'#EFF6FF',color:'#2563EB',borderColor:'#BFDBFE',fontWeight:'700',fontSize:'11px',marginBottom:'8px',display:'inline-block'})
+      badge.textContent='● NOVO'
+      ul.appendChild(badge)
+      ul.appendChild(el('br'))
+    }
 
-    // Título + nome da tela
-    ap(ul,ap(el('h3','',{fontSize:'15px',fontWeight:'700',marginBottom:'3px',color:'var(--t1)'}),u.title))
-    if(u.screenName)ap(ul,ap(el('p','f12 tc2',{marginBottom:'4px'}),'🖥 Tela: '+u.screenName))
-    if(u.description)ap(ul,ap(el('p','f12 tc2',{lineHeight:'1.6'}),u.description))
+    // Tags
+    const utags=el('div','',{display:'flex',gap:'4px',flexWrap:'wrap',marginBottom:'8px',marginTop:'4px'})
+    const typeCfg={video:{l:'📹 Vídeo',c:'#DC2626',bg:'#FEF2F2',bd:'#FECACA'},storage_video:{l:'📹 Vídeo',c:'#DC2626',bg:'#FEF2F2',bd:'#FECACA'},pdf:{l:'📄 PDF',c:'#2563EB',bg:'#EFF6FF',bd:'#BFDBFE'},none:{l:null}}[u.type]||{l:null}
+    if(typeCfg.l)utags.appendChild(tag_({c:typeCfg.c,bg:typeCfg.bg,bd:typeCfg.bd},typeCfg.l))
+    if(u.procTipo&&PROC_TIPO[u.procTipo])utags.appendChild(tag_(PROC_TIPO[u.procTipo],PROC_TIPO[u.procTipo].l))
+    if(u.devCat&&DEV_CAT[u.devCat])utags.appendChild(tag_(DEV_CAT[u.devCat],DEV_CAT[u.devCat].l))
+    if(u.devMod&&DEV_MOD[u.devMod])utags.appendChild(tag_(DEV_MOD[u.devMod],DEV_MOD[u.devMod].l))
+    if(u.version){const vt=el('span','tag',{background:'#F8FAFC',color:'#475569',borderColor:'#CBD5E1'});vt.textContent='v'+u.version;utags.appendChild(vt)}
+    if(utags.children.length)ul.appendChild(utags)
 
-    // Autor + data/hora (canto)
+    // Título
+    const ht=ap(el('h3','',{fontSize:'15px',fontWeight:'700',marginBottom:'3px',color:'var(--t1)'}),u.title||'')
+    ul.appendChild(ht)
+    if(u.screenName)ul.appendChild(ap(el('p','f12 tc2',{marginBottom:'3px'}),'🖥 Tela: '+u.screenName))
+    if(u.description)ul.appendChild(ap(el('p','f12 tc2',{lineHeight:'1.6'}),u.description))
+
+    // Data/hora no canto
     const ur=el('div','',{textAlign:'right',flexShrink:'0',marginLeft:'12px'})
     const ts=u.createdAt?.toDate?.()||new Date()
     ap(ur,
-      ap(el('div','f11 tc3',{marginBottom:'2px'}),u.createdByName||''),
+      ap(el('div','f11 tc3',{marginBottom:'1px'}),u.createdByName||''),
       ap(el('div','f11 tc3'),ts.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'})),
-      ap(el('div','f11 tc3',{fontWeight:'600',color:'var(--t2)'}),ts.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}))
+      ap(el('div','f12 fw5',{color:'var(--blue)'}),ts.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}))
     )
-    ap(uh,ul,ur);uc.appendChild(uh)
+
+    ap(uh,ul,ur)
+    uc.appendChild(uh)
 
     // Mídia
-    const media=buildMedia(u.type,u.url||'','')
-    if(media)uc.appendChild(media)
+    if(u.url){
+      const media=buildMedia(u.type,u.url,'')
+      if(media)uc.appendChild(media)
+    }
+    // Imagem/print
+    if(u.imageUrl){
+      const imgWrap=el('div','',{padding:'0 20px 12px'})
+      const img=el('img','',{maxWidth:'100%',borderRadius:'8px',border:'1px solid var(--brd)',cursor:'pointer'})
+      img.src=u.imageUrl;img.onclick=()=>window.open(u.imageUrl,'_blank')
+      img.title='Clique para ampliar'
+      imgWrap.appendChild(img);uc.appendChild(imgWrap)
+    }
 
     // Rodapé
     const uf=el('div','update-foot')
-    const vw=el('div','flex aic g8')
+    const vw=el('div','',{display:'flex',alignItems:'center',gap:'8px',flex:'1'})
     ap(vw,ap(el('span','f12 tc2'),viewerCount+' de '+(users.length||1)+' '+(viewerCount===1?'pessoa viu':'pessoas viram')))
     if(u.viewedBy?.length){
-      const avWrap=el('div','flex',{marginLeft:'4px'})
-      u.viewedBy.slice(0,5).forEach((v,i)=>{const a=av(v.name,20);a.style.marginLeft=i>0?'-5px':'0';a.title=v.name;avWrap.appendChild(a)})
-      vw.appendChild(avWrap)
+      const avw=el('div','',{display:'flex'})
+      u.viewedBy.slice(0,5).forEach((v,i)=>{const a=av(v.name,20);if(i>0)a.style.marginLeft='-5px';a.title=v.name;avw.appendChild(a)})
+      vw.appendChild(avw)
     }
-    ap(uf,vw)
+    uf.appendChild(vw)
+    const acts=el('div','',{display:'flex',gap:'6px'})
     if(!viewed){
-      const confirmBtn=ap(el('button','btn btn-g btn-sm'),'✓ Confirmar que vi')
-      confirmBtn.onclick=async()=>{
-        confirmBtn.disabled=true;confirmBtn.textContent='Confirmando...'
-        await updateDoc(doc(db,'updates',u.id),{viewedBy:arrayUnion({uid:CU.uid,name:CP.name,viewedAt:new Date().toISOString()})})
-      }
-      uf.appendChild(confirmBtn)
+      const cb=ap(el('button','btn btn-g btn-sm'),'✓ Confirmar que vi')
+      cb.onclick=async()=>{cb.disabled=true;cb.textContent='✓ Visto';await updateDoc(doc(db,'updates',u.id),{viewedBy:arrayUnion({uid:CU.uid,name:CP.name,viewedAt:new Date().toISOString()})})}
+      acts.appendChild(cb)
     }
-    if(isA){const del=ap(el('button','btn btn-d btn-xs'),'Excluir');del.onclick=async()=>{if(confirm('Excluir esta atualização?'))await deleteDoc(doc(db,'updates',u.id))};uf.appendChild(del)}
+    if(isA){
+      const db2=ap(el('button','btn btn-d btn-xs'),'Excluir')
+      db2.onclick=async()=>{if(confirm('Excluir?'))await deleteDoc(doc(db,'updates',u.id))}
+      acts.appendChild(db2)
+    }
+    uf.appendChild(acts)
     uc.appendChild(uf)
     w.appendChild(uc)
   })
   return w
+}
+
+function openUpdateModal(){
+  let f={title:'',procTipo:'',screenName:'',version:'',type:'none',url:'',description:'',devCat:'',devMod:''}
+  let selectedVideo=null,selectedImage=null
+  const ov=el('div','overlay');const mo=el('div','modal')
+  const mh=ap(el('div','modal-h'),ap(el('div','modal-t'),'Nova atualização'))
+  const x=ap(el('button','modal-x'),'×');x.onclick=()=>ov.remove();mh.appendChild(x)
+  const mb=el('div','modal-b')
+
+  // Título
+  const tg=ap(el('div','form-g'),ap(el('label','form-l'),'Título *'))
+  const ti=el('input','');ti.placeholder='Ex: Manutenção de custo via planilha Excel';ti.oninput=e=>f.title=e.target.value;tg.appendChild(ti)
+
+  // Tipo de processo + Nome da tela
+  const r1=el('div','form-row')
+  const ptg=ap(el('div','form-g',{marginBottom:'0'}),ap(el('label','form-l'),'Tipo de processo'))
+  const pts=el('select','')
+  pts.innerHTML='<option value="">— Selecione —</option>'+Object.entries(PROC_TIPO).map(([k,v])=>`<option value="${k}">${v.l}</option>`).join('')
+  pts.onchange=e=>f.procTipo=e.target.value;ptg.appendChild(pts)
+  const sng=ap(el('div','form-g',{marginBottom:'0'}),ap(el('label','form-l'),'Nome da tela'))
+  const sni=el('input','');sni.placeholder='Ex: Pedido de compra';sni.oninput=e=>f.screenName=e.target.value;sng.appendChild(sni)
+  ap(r1,ptg,sng)
+
+  // Versão + Tipo desenvolvimento
+  const r2=el('div','form-row')
+  const verg=ap(el('div','form-g',{marginBottom:'0'}),ap(el('label','form-l'),'Versão'))
+  const veri=el('input','');veri.placeholder='Ex: 2.4.1';veri.oninput=e=>f.version=e.target.value;verg.appendChild(veri)
+  const catg=ap(el('div','form-g',{marginBottom:'0'}),ap(el('label','form-l'),'Tipo de desenvolvimento'))
+  const cats=el('select','')
+  cats.innerHTML='<option value="">— Selecione —</option>'+Object.entries(DEV_CAT).map(([k,v])=>`<option value="${k}">${v.l}</option>`).join('')
+  cats.onchange=e=>f.devCat=e.target.value;catg.appendChild(cats)
+  ap(r2,verg,catg)
+
+  // Módulo
+  const modg=ap(el('div','form-g'),ap(el('label','form-l'),'Módulo'))
+  const mods=el('select','')
+  mods.innerHTML='<option value="">— Selecione —</option>'+Object.entries(DEV_MOD).map(([k,v])=>`<option value="${k}">${v.l}</option>`).join('')
+  mods.onchange=e=>f.devMod=e.target.value;modg.appendChild(mods)
+
+  // Descrição
+  const dg=ap(el('div','form-g'),ap(el('label','form-l'),'Descrição'))
+  const di=el('textarea','',{resize:'vertical'});di.rows=2;di.placeholder='Detalhe a atualização...';di.oninput=e=>f.description=e.target.value;dg.appendChild(di)
+
+  // Material (vídeo/PDF)
+  const matg=ap(el('div','form-g'),ap(el('label','form-l'),'Material (anexo)'))
+  const matSel=el('select','')
+  matSel.innerHTML='<option value="none">Não</option><option value="pdf">Sim, PDF</option><option value="upload">Sim, Vídeo</option>'
+  matg.appendChild(matSel)
+
+  const pdfg=ap(el('div','form-g',{display:'none'}),ap(el('label','form-l'),'Link do PDF (Google Drive)'))
+  const pdfi=el('input','');pdfi.placeholder='https://drive.google.com/...';pdfi.oninput=e=>f.url=e.target.value;pdfg.appendChild(pdfi)
+
+  const uploadg=el('div','form-g',{display:'none'})
+  ap(uploadg,ap(el('label','form-l'),'Selecionar vídeo'))
+  const vidInput=el('input','');vidInput.type='file';vidInput.accept='video/*'
+  vidInput.style.cssText='padding:8px;background:#F1F5F9;border:2px dashed #CBD5E1;border-radius:8px;cursor:pointer;width:100%'
+  const vidName=ap(el('p','f12 tc3',{marginTop:'5px'}),'Nenhum vídeo selecionado')
+  const progWrap=el('div','',{display:'none',marginTop:'6px'})
+  const progBar=el('div','',{height:'5px',background:'#E2E8F0',borderRadius:'3px',overflow:'hidden',marginBottom:'3px'})
+  const progFill=el('div','',{height:'5px',background:'var(--blue)',borderRadius:'3px',width:'0%',transition:'width .3s'})
+  const progTxt=ap(el('p','f11 tc2'),'Enviando...')
+  progBar.appendChild(progFill);ap(progWrap,progBar,progTxt)
+  vidInput.onchange=e=>{selectedVideo=e.target.files[0];if(selectedVideo){vidName.textContent='✓ '+selectedVideo.name+' ('+Math.round(selectedVideo.size/1024/1024*10)/10+' MB)';vidName.style.color='var(--green)'}}
+  ap(uploadg,vidInput,vidName,progWrap)
+
+  matSel.onchange=()=>{f.type=matSel.value;pdfg.style.display=f.type==='pdf'?'':'none';uploadg.style.display=f.type==='upload'?'':'none'}
+
+  // Imagem / Print (opcional)
+  const imgg=ap(el('div','form-g'),ap(el('label','form-l'),'Imagem / Print de tela (opcional)'))
+  const imgInput=el('input','');imgInput.type='file';imgInput.accept='image/*'
+  imgInput.style.cssText='padding:8px;background:#F1F5F9;border:2px dashed #CBD5E1;border-radius:8px;cursor:pointer;width:100%'
+  const imgName=ap(el('p','f12 tc3',{marginTop:'5px'}),'Nenhuma imagem selecionada')
+  const imgPreview=el('img','',{maxWidth:'100%',borderRadius:'8px',marginTop:'8px',display:'none'})
+  imgInput.onchange=e=>{
+    selectedImage=e.target.files[0]
+    if(selectedImage){
+      imgName.textContent='✓ '+selectedImage.name;imgName.style.color='var(--green)'
+      const reader=new FileReader()
+      reader.onload=ev=>{imgPreview.src=ev.target.result;imgPreview.style.display='block'}
+      reader.readAsDataURL(selectedImage)
+    }
+  }
+  ap(imgg,imgInput,imgName,imgPreview)
+
+  ap(mb,tg,r1,r2,modg,dg,matg,pdfg,uploadg,imgg)
+
+  const mf=el('div','modal-f')
+  const can=ap(el('button','btn btn-s'),'Cancelar');can.onclick=()=>ov.remove()
+  const cr=ap(el('button','btn btn-p'),'Publicar')
+
+  cr.onclick=async()=>{
+    if(!f.title.trim())return
+    cr.disabled=true;cr.textContent='Publicando...'
+    try{
+      let finalUrl=f.url||''
+      let finalType=f.type
+      let imageUrl=''
+
+      // Upload vídeo
+      if(f.type==='upload'&&selectedVideo){
+        finalType='storage_video'
+        progWrap.style.display=''
+        const vRef=ref(storage,'updates/'+Date.now()+'_'+selectedVideo.name)
+        const vTask=uploadBytesResumable(vRef,selectedVideo)
+        await new Promise((res,rej)=>{vTask.on('state_changed',s=>{const p=Math.round(s.bytesTransferred/s.totalBytes*100);progFill.style.width=p+'%';progTxt.textContent='Enviando vídeo... '+p+'%'},rej,async()=>{finalUrl=await getDownloadURL(vTask.snapshot.ref);res()})})
+        progTxt.textContent='✓ Vídeo enviado!'
+      }
+
+      // Upload imagem
+      if(selectedImage){
+        const iRef=ref(storage,'updates/img_'+Date.now()+'_'+selectedImage.name)
+        const iTask=uploadBytesResumable(iRef,selectedImage)
+        await new Promise((res,rej)=>{iTask.on('state_changed',()=>{},rej,async()=>{imageUrl=await getDownloadURL(iTask.snapshot.ref);res()})})
+      }
+
+      await addDoc(collection(db,'updates'),{
+        title:f.title,procTipo:f.procTipo||'',screenName:f.screenName||'',
+        version:f.version||'',type:finalType,url:finalUrl,imageUrl:imageUrl,
+        description:f.description||'',devCat:f.devCat||'',devMod:f.devMod||'',
+        createdBy:CU.uid,createdByName:CP.name,
+        createdAt:serverTimestamp(),
+        viewedBy:[{uid:CU.uid,name:CP.name,viewedAt:new Date().toISOString()}]
+      })
+      ov.remove()
+    }catch(e){
+      alert('Erro ao publicar: '+e.message)
+      cr.disabled=false;cr.textContent='Publicar'
+    }
+  }
+  ap(mf,can,cr);ap(mo,mh,mb,mf);ov.appendChild(mo);document.body.appendChild(ov)
 }
 
 function buildProspects(){

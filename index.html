@@ -276,9 +276,10 @@ input:focus,select:focus,textarea:focus{border-color:var(--blue);box-shadow:0 0 
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js'
 import{getAuth,signInWithEmailAndPassword,signOut,onAuthStateChanged,createUserWithEmailAndPassword}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js'
 import{getFirestore,collection,addDoc,query,where,onSnapshot,orderBy,doc,updateDoc,serverTimestamp,getDoc,setDoc,getDocs,deleteDoc,arrayUnion}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js'
+import{getStorage,ref,uploadBytesResumable,getDownloadURL}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js'
 
 const fcfg={apiKey:"AIzaSyByb5xL5fnmW3wcc7OU2BhuCUf0eTxjYuI",authDomain:"demanda-jsr.firebaseapp.com",projectId:"demanda-jsr",storageBucket:"demanda-jsr.firebasestorage.app",messagingSenderId:"557935888143",appId:"1:557935888143:web:2de3954f8769430488e07a"}
-const fb=initializeApp(fcfg);const auth=getAuth(fb);const db=getFirestore(fb)
+const fb=initializeApp(fcfg);const auth=getAuth(fb);const db=getFirestore(fb);const storage=getStorage(fb)
 
 // ── ESTADO ──────────────────────────────────────────────────
 let CU=null,CP=null,sec='demands',unsubs=[]
@@ -300,6 +301,8 @@ const PST_MAP={contato:'primeiro_contato',proposta:'envio_proposta',aguardando:'
 const pstN=s=>PST[s]?s:(PST_MAP[s]||'primeiro_contato')
 const PSTC={com_interacao:{l:'Com interação',c:'#059669',bg:'#ECFDF5',bd:'#A7F3D0'},sem_interacao:{l:'Sem interação',c:'#DC2626',bg:'#FEF2F2',bd:'#FECACA'}}
 const NP={info:{l:'Informativo',c:'#2563EB',bg:'#EFF6FF',bd:'#BFDBFE',top:'#2563EB'},warning:{l:'Atenção',c:'#D97706',bg:'#FFFBEB',bd:'#FDE68A',top:'#F59E0B'},urgent:{l:'Urgente',c:'#DC2626',bg:'#FEF2F2',bd:'#FECACA',top:'#DC2626'}}
+const DEV_CAT={nova_tela:{l:'Nova tela',c:'#7C3AED',bg:'#F5F3FF',bd:'#DDD6FE'},correcoes:{l:'Correções',c:'#DC2626',bg:'#FEF2F2',bd:'#FECACA'},implementacoes:{l:'Implementações',c:'#2563EB',bg:'#EFF6FF',bd:'#BFDBFE'},melhorias:{l:'Melhorias',c:'#059669',bg:'#ECFDF5',bd:'#A7F3D0'}}
+const DEV_MOD={retaguarda:{l:'Retaguarda',c:'#0F172A',bg:'#F1F5F9',bd:'#CBD5E1'},financeiro:{l:'Financeiro',c:'#059669',bg:'#ECFDF5',bd:'#A7F3D0'},fiscal:{l:'Fiscal',c:'#D97706',bg:'#FFFBEB',bd:'#FDE68A'},erp:{l:'ERP',c:'#2563EB',bg:'#EFF6FF',bd:'#BFDBFE'},app_web:{l:'APP Web',c:'#7C3AED',bg:'#F5F3FF',bd:'#DDD6FE'},terminal:{l:'Terminal de etiqueta',c:'#EA580C',bg:'#FFF7ED',bd:'#FDBA74'}}
 const AVC=n=>{const i=(n?.charCodeAt(0)||0)%5;return[['#2563EB','#DBEAFE'],['#059669','#D1FAE5'],['#7C3AED','#EDE9FE'],['#D97706','#FEF3C7'],['#DC2626','#FEE2E2']][i]}
 
 // ── UTILS ────────────────────────────────────────────────────
@@ -319,7 +322,10 @@ function buildMedia(type,url,content){
   if(type==='video'){
     const id=ytId(url);
     if(id){const f=el('iframe','update-media video',{height:'auto'});f.src=`https://www.youtube.com/embed/${id}`;f.allow='accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture';f.allowFullscreen=true;return f}
-    const f=el('iframe','update-media video',{height:'auto'});f.src=url;f.allow='autoplay';f.allowFullscreen=true;return f;
+    const f=el('iframe','update-media video',{height:'auto'});f.src=url;f.allow='autoplay';f.allowFullscreen=true;return f
+  }
+  if(type==='storage_video'){
+    const v=el('video','update-media',{controls:'true',style:'background:#000;max-height:400px'});v.src=url;v.style.background='#000';v.style.maxHeight='400px';return v
   }
   if(type==='pdf'){const f=el('iframe','update-media pdf');f.src=url+'#toolbar=0';return f}
   if(type==='text'){const p=el('div','update-text');p.textContent=content;return p}
@@ -626,6 +632,8 @@ function buildUpdates(){
     const utags=el('div','flex g6 mb8 flex',{flexWrap:'wrap',alignItems:'center'})
     const typeCfg={video:{l:'📹 Vídeo',c:'#DC2626',bg:'#FEF2F2',bd:'#FECACA'},pdf:{l:'📄 PDF',c:'#2563EB',bg:'#EFF6FF',bd:'#BFDBFE'},text:{l:'📝 Texto',c:'#059669',bg:'#ECFDF5',bd:'#A7F3D0'}}[u.type]||{l:'Conteúdo',c:'#64748B',bg:'#F8FAFC',bd:'#E2E8F0'}
     ap(utags,tag_({c:typeCfg.c,bg:typeCfg.bg,bd:typeCfg.bd},typeCfg.l))
+    if(u.devCat&&DEV_CAT[u.devCat])ap(utags,tag_(DEV_CAT[u.devCat],DEV_CAT[u.devCat].l))
+    if(u.devMod&&DEV_MOD[u.devMod])ap(utags,tag_(DEV_MOD[u.devMod],DEV_MOD[u.devMod].l))
     if(viewed)ap(utags,tag_({c:'#059669',bg:'#ECFDF5',bd:'#A7F3D0'},'✓ Visto'))
     else ap(utags,tag_({c:'#D97706',bg:'#FFFBEB',bd:'#FDE68A'},'Novo'))
     ap(ul,utags,ap(el('h3','',{fontSize:'15px',fontWeight:'700',marginBottom:'4px'}),u.title),ap(el('p','f12 tc2'),`Por ${u.createdByName} · ${ago(u.createdAt)}`))
@@ -665,34 +673,124 @@ function buildUpdates(){
   return w
 }
 function openUpdateModal(){
-  let f={title:'',type:'video',url:'',content:'',description:''}
+  let f={title:'',type:'video',url:'',content:'',description:'',devCat:'',devMod:''}
+  let selectedFile=null
   const ov=el('div','overlay');const mo=el('div','modal')
   const mh=ap(el('div','modal-h'),ap(el('div','modal-t'),'Nova atualização'))
   const x=ap(el('button','modal-x'),'×');x.onclick=()=>ov.remove();mh.appendChild(x)
   const mb=el('div','modal-b')
-  const tg=ap(el('div','form-g'),ap(el('label','form-l'),'Título *'));const ti=el('input','');ti.placeholder='Ex: Como usar o sistema de NF-e';ti.oninput=e=>f.title=e.target.value;tg.appendChild(ti)
-  const desc_g=ap(el('div','form-g'),ap(el('label','form-l'),'Descrição (opcional)'));const desc_i=el('textarea','',{resize:'vertical'});desc_i.rows=2;desc_i.placeholder='Breve descrição do conteúdo...';desc_i.oninput=e=>f.description=e.target.value;desc_g.appendChild(desc_i)
-  const typeg=ap(el('div','form-g'),ap(el('label','form-l'),'Tipo de conteúdo'));const types=el('select','');types.innerHTML='<option value="video">📹 Vídeo (YouTube/Vimeo)</option><option value="pdf">📄 PDF (link do Google Drive)</option><option value="text">📝 Somente texto</option>';types.onchange=e=>{f.type=e.target.value;updUrlG()};typeg.appendChild(types)
-  const urlg=el('div','form-g');
+
+  const tg=ap(el('div','form-g'),ap(el('label','form-l'),'Título *'))
+  const ti=el('input','');ti.placeholder='Ex: Como usar o sistema de NF-e';ti.oninput=e=>f.title=e.target.value;tg.appendChild(ti)
+
+  const dg=ap(el('div','form-g'),ap(el('label','form-l'),'Descrição (opcional)'))
+  const di=el('textarea','',{resize:'vertical'});di.rows=2;di.placeholder='Breve descrição do conteúdo...';di.oninput=e=>f.description=e.target.value;dg.appendChild(di)
+
+  const typeg=ap(el('div','form-g'),ap(el('label','form-l'),'Tipo de conteúdo'))
+  const types=el('select','')
+  types.innerHTML=`
+    <option value="video">📹 Vídeo (YouTube/Vimeo)</option>
+    <option value="upload">📱 Vídeo do celular/computador</option>
+    <option value="pdf">📄 PDF (link do Google Drive)</option>
+    <option value="text">📝 Somente texto</option>
+  `
+  typeg.appendChild(types)
+
+  // Link URL (YouTube / PDF)
+  const urlg=el('div','form-g')
   const urll=ap(el('label','form-l'),'Link do vídeo (YouTube)');urlg.appendChild(urll)
   const urli=el('input','');urli.placeholder='https://youtube.com/watch?v=...';urli.oninput=e=>f.url=e.target.value;urlg.appendChild(urli)
-  const textg=ap(el('div','form-g',{display:'none'}),ap(el('label','form-l'),'Conteúdo do texto'));const texti=el('textarea','',{resize:'vertical'});texti.rows=6;texti.placeholder='Digite o conteúdo da atualização...';texti.oninput=e=>f.content=e.target.value;textg.appendChild(texti)
-  function updUrlG(){
-    if(f.type==='text'){urlg.style.display='none';textg.style.display=''}
-    else{urlg.style.display='';textg.style.display='none';urll.textContent=f.type==='video'?'Link do vídeo (YouTube/Vimeo)':'Link do PDF (Google Drive)';urli.placeholder=f.type==='video'?'https://youtube.com/watch?v=...':'https://drive.google.com/...'}
+
+  // Upload de arquivo
+  const uploadg=el('div','form-g',{display:'none'})
+  ap(uploadg,ap(el('label','form-l'),'Selecionar vídeo do dispositivo'))
+  const fileInput=el('input','')
+  fileInput.type='file';fileInput.accept='video/*';fileInput.style.cssText='padding:8px;background:#F1F5F9;border:2px dashed #CBD5E1;borderRadius:8px;cursor:pointer'
+  fileInput.onchange=e=>{selectedFile=e.target.files[0];if(selectedFile){fileNameEl.textContent='✓ '+selectedFile.name+' ('+Math.round(selectedFile.size/1024/1024*10)/10+' MB)';fileNameEl.style.color='var(--green)'}}
+  const fileNameEl=ap(el('p','f12 tc3',{marginTop:'6px'}),'Nenhum arquivo selecionado')
+  ap(uploadg,fileInput,fileNameEl)
+
+  // Progress bar (oculta inicialmente)
+  const progressg=el('div','',{display:'none',marginTop:'8px'})
+  const progressBar=el('div','',{height:'6px',background:'#E2E8F0',borderRadius:'3px',overflow:'hidden',marginBottom:'4px'})
+  const progressFill=el('div','',{height:'6px',background:'var(--blue)',borderRadius:'3px',width:'0%',transition:'width .3s'})
+  const progressTxt=ap(el('p','f11 tc2'),'Enviando...')
+  progressBar.appendChild(progressFill);ap(progressg,progressBar,progressTxt)
+  uploadg.appendChild(progressg)
+
+  // Texto
+  const textg=ap(el('div','form-g',{display:'none'}),ap(el('label','form-l'),'Conteúdo do texto'))
+  const texti=el('textarea','',{resize:'vertical'});texti.rows=5;texti.placeholder='Digite o conteúdo...';texti.oninput=e=>f.content=e.target.value;textg.appendChild(texti)
+
+  function updType(){
+    f.type=types.value
+    urlg.style.display=f.type==='video'||f.type==='pdf'?'':'none'
+    uploadg.style.display=f.type==='upload'?'':'none'
+    textg.style.display=f.type==='text'?'':'none'
+    if(f.type==='video'){urll.textContent='Link do vídeo (YouTube/Vimeo)';urli.placeholder='https://youtube.com/watch?v=...'}
+    if(f.type==='pdf'){urll.textContent='Link do PDF (Google Drive)';urli.placeholder='https://drive.google.com/...'}
   }
-  ap(mb,tg,desc_g,typeg,urlg,textg)
+  types.onchange=updType;updType()
+
+  ap(mb,tg,dg,typeg,urlg,uploadg,textg)
+
+  // Categorias de desenvolvimento
+  const catRow=el('div','form-row',{marginTop:'4px'})
+  const catg=ap(el('div','form-g',{marginBottom:'0'}),ap(el('label','form-l'),'Tipo de desenvolvimento'))
+  const cats=el('select','')
+  cats.innerHTML='<option value="">— Selecione —</option>'+Object.entries(DEV_CAT).map(([k,v])=>`<option value="${k}">${v.l}</option>`).join('')
+  cats.onchange=e=>f.devCat=e.target.value;catg.appendChild(cats)
+
+  const modg=ap(el('div','form-g',{marginBottom:'0'}),ap(el('label','form-l'),'Módulo'))
+  const mods=el('select','')
+  mods.innerHTML='<option value="">— Selecione —</option>'+Object.entries(DEV_MOD).map(([k,v])=>`<option value="${k}">${v.l}</option>`).join('')
+  mods.onchange=e=>f.devMod=e.target.value;modg.appendChild(mods)
+
+  ap(catRow,catg,modg);mb.appendChild(catRow)
+
   const mf=el('div','modal-f')
   const can=ap(el('button','btn btn-s'),'Cancelar');can.onclick=()=>ov.remove()
   const cr=ap(el('button','btn btn-p'),'Publicar')
+
   cr.onclick=async()=>{
     if(!f.title.trim())return
-    if(f.type!=='text'&&!f.url.trim())return
-    if(f.type==='text'&&!f.content.trim())return
     cr.disabled=true;cr.textContent='Publicando...'
-    await addDoc(collection(db,'updates'),{title:f.title,type:f.type,url:f.url,content:f.content,description:f.description,createdBy:CU.uid,createdByName:CP.name,createdAt:serverTimestamp(),viewedBy:[{uid:CU.uid,name:CP.name,viewedAt:new Date().toISOString()}]})
-    ov.remove()
+
+    try{
+      let finalUrl=f.url
+      let finalType=f.type
+
+      // Upload de arquivo para Firebase Storage
+      if(f.type==='upload'){
+        if(!selectedFile){cr.disabled=false;cr.textContent='Publicar';alert('Selecione um arquivo de vídeo.');return}
+        finalType='storage_video'
+        progressg.style.display=''
+        const storageRef=ref(storage,'updates/'+Date.now()+'_'+selectedFile.name)
+        const uploadTask=uploadBytesResumable(storageRef,selectedFile)
+        await new Promise((resolve,reject)=>{
+          uploadTask.on('state_changed',
+            snap=>{const pct=Math.round(snap.bytesTransferred/snap.totalBytes*100);progressFill.style.width=pct+'%';progressTxt.textContent='Enviando... '+pct+'%'},
+            err=>reject(err),
+            async()=>{finalUrl=await getDownloadURL(uploadTask.snapshot.ref);resolve()}
+          )
+        })
+        progressTxt.textContent='✓ Upload concluído!'
+      }
+
+      await addDoc(collection(db,'updates'),{
+        title:f.title,type:finalType,url:finalUrl,content:f.content,
+        description:f.description,devCat:f.devCat||'',devMod:f.devMod||'',
+        createdBy:CU.uid,createdByName:CP.name,
+        createdAt:serverTimestamp(),
+        viewedBy:[{uid:CU.uid,name:CP.name,viewedAt:new Date().toISOString()}]
+      })
+      ov.remove()
+    }catch(e){
+      alert('Erro ao publicar: '+e.message)
+      cr.disabled=false;cr.textContent='Publicar'
+    }
   }
+
   ap(mf,can,cr);ap(mo,mh,mb,mf);ov.appendChild(mo);document.body.appendChild(ov)
 }
 

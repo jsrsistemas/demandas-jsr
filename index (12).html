@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
-<title>DemandFlow</title>
+<title>DemandFlow v4.2</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <style>
 :root{
@@ -295,8 +295,8 @@ const FRASE=FRASES[new Date().getDate()%FRASES.length]
 const DS={open:{l:'Aberto',c:'#1D4ED8',bg:'#EFF6FF',bd:'#BFDBFE'},in_progress:{l:'Andamento',c:'#D97706',bg:'#FFFBEB',bd:'#FDE68A'},resolved:{l:'Resolvido',c:'#059669',bg:'#ECFDF5',bd:'#A7F3D0'}}
 const DP={high:{l:'Alta',c:'#DC2626',bg:'#FEF2F2',bd:'#FECACA'},medium:{l:'Média',c:'#D97706',bg:'#FFFBEB',bd:'#FDE68A'},low:{l:'Baixa',c:'#64748B',bg:'#F8FAFC',bd:'#E2E8F0'}}
 const DT={internal:{l:'Interna',i:'●',c:'#059669',bg:'#ECFDF5',bd:'#A7F3D0'},private:{l:'Privada',i:'◆',c:'#7C3AED',bg:'#F5F3FF',bd:'#DDD6FE'},restricted:{l:'Restrita',i:'▲',c:'#DC2626',bg:'#FEF2F2',bd:'#FECACA'}}
-const PST={primeiro_contato:{l:'1° Contato',c:'#2563EB',bg:'#EFF6FF',bd:'#BFDBFE'},solicitacao_proposta:{l:'Solic. proposta',c:'#0891B2',bg:'#ECFEFF',bd:'#A5F3FC'},envio_proposta:{l:'Envio de proposta',c:'#7C3AED',bg:'#F5F3FF',bd:'#DDD6FE'},neg_mensalidade:{l:'Neg. Mensalidade',c:'#D97706',bg:'#FFFBEB',bd:'#FDE68A'},neg_implantacao:{l:'Neg. Implantação',c:'#EA580C',bg:'#FFF7ED',bd:'#FDBA74'},neg_mensal_impl:{l:'Neg. Mensal+Impl.',c:'#0891B2',bg:'#ECFEFF',bd:'#A5F3FC'},fechado:{l:'Fechado ✓',c:'#059669',bg:'#ECFDF5',bd:'#A7F3D0'},nao_fechado:{l:'Não Fechado',c:'#DC2626',bg:'#FEF2F2',bd:'#FECACA'}}
-const PST_MAP={contato:'primeiro_contato',proposta:'envio_proposta',aguardando:'primeiro_contato',nao_retornou:'primeiro_contato',aceite:'fechado',nao_aceite:'nao_fechado'}
+const PST={primeiro_contato:{l:'1° Contato',c:'#2563EB',bg:'#EFF6FF',bd:'#BFDBFE'},solicitacao_proposta:{l:'Solic. proposta',c:'#0891B2',bg:'#ECFEFF',bd:'#A5F3FC'},envio_proposta:{l:'Envio de proposta',c:'#7C3AED',bg:'#F5F3FF',bd:'#DDD6FE'},neg_mensal_impl:{l:'Neg. Mensal+Impl.',c:'#EA580C',bg:'#FFF7ED',bd:'#FDBA74'},fechado:{l:'Fechado ✓',c:'#059669',bg:'#ECFDF5',bd:'#A7F3D0'},nao_fechado:{l:'Não Fechado',c:'#DC2626',bg:'#FEF2F2',bd:'#FECACA'}}
+const PST_MAP={contato:'primeiro_contato',proposta:'envio_proposta',aguardando:'primeiro_contato',nao_retornou:'primeiro_contato',aceite:'fechado',nao_aceite:'nao_fechado',neg_mensalidade:'neg_mensal_impl',neg_implantacao:'neg_mensal_impl'}
 const pstN=s=>PST[s]?s:(PST_MAP[s]||'primeiro_contato')
 const PSTC={com_interacao:{l:'Com interação',c:'#059669',bg:'#ECFDF5',bd:'#A7F3D0'},sem_interacao:{l:'Sem interação',c:'#DC2626',bg:'#FEF2F2',bd:'#FECACA'}}
 const NP={info:{l:'Informativo',c:'#2563EB',bg:'#EFF6FF',bd:'#BFDBFE',top:'#2563EB'},warning:{l:'Atenção',c:'#D97706',bg:'#FFFBEB',bd:'#FDE68A',top:'#F59E0B'},urgent:{l:'Urgente',c:'#DC2626',bg:'#FEF2F2',bd:'#FECACA',top:'#DC2626'}}
@@ -366,7 +366,7 @@ function buildSidebar(){
   const isA=CP?.role==='admin'
   const sb=el('div','sb')
   const logo=el('div','sb-logo')
-  ap(logo,ap(el('div','sb-logo-icon'),'D'),ap(el('div',''),ap(el('div','sb-logo-text'),'DemandFlow'),ap(el('div','sb-logo-sub'),'Central da Equipe')))
+  ap(logo,ap(el('div','sb-logo-icon'),'D'),ap(el('div',''),ap(el('div','sb-logo-text'),'DemandFlow'),ap(el('div','sb-logo-sub'),'Central da Equipe · v4.2 ✦')))
   sb.appendChild(logo)
   const nav=el('div','sb-nav')
   ap(nav,ap(el('div','sb-sec'),'Menu'))
@@ -750,69 +750,169 @@ function buildProspects(){
   kbWrap.appendChild(kb);w.appendChild(kbWrap);return w
 }
 function openProspectReport(){
-  const now=new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'})
-  const total=prospects.length
-  const ativos=prospects.filter(p=>!['fechado','nao_fechado'].includes(pstN(p.status))).length
-  const fechados=prospects.filter(p=>pstN(p.status)==='fechado').length
-  const naoFechados=prospects.filter(p=>pstN(p.status)==='nao_fechado').length
-  const totalValor=prospects.filter(p=>p.value).reduce((s,p)=>s+Number(p.value),0)
+  // Modal de opções antes de gerar
+  const ov=el('div','overlay');const mo=el('div','modal')
+  const mh=ap(el('div','modal-h'),ap(el('div','modal-t'),'📊 Gerar Relatório de Prospects'))
+  const x=ap(el('button','modal-x'),'×');x.onclick=()=>ov.remove();mh.appendChild(x)
+  const mb=el('div','modal-b')
 
-  const rows=prospects.map(p=>{
+  let sortBy='status' // default
+
+  ap(mb,ap(el('p','f13 tc2 mb12'),'Escolha como ordenar os prospects no relatório:'))
+
+  const opts=[
+    {v:'status',l:'📋 Por status',d:'Agrupa por etapa do pipeline (1° Contato → Fechado)'},
+    {v:'name',l:'🔤 Por nome A-Z',d:'Ordem alfabética pelo nome do contato'},
+    {v:'company',l:'🏢 Por empresa A-Z',d:'Ordem alfabética pelo nome da empresa'},
+    {v:'value',l:'💰 Por valor (maior primeiro)',d:'Prospects com maior valor estimado aparecem primeiro'},
+    {v:'date',l:'🕐 Por data (mais recente)',d:'Mais recentes no topo'},
+  ]
+
+  const optEls=opts.map(o=>{
+    const wrap=el('div','',{border:'1px solid var(--brd)',borderRadius:'9px',padding:'10px 14px',marginBottom:'8px',cursor:'pointer',transition:'all .15s'})
+    const top=ap(el('div','flex aic g8'),ap(el('input',''),{type:'radio',name:'sort',value:o.v,style:'width:auto;flex-shrink:0'}))
+    top.children[0].id='sort-'+o.v;if(o.v==='status')top.children[0].checked=true
+    top.children[0].onchange=()=>{sortBy=o.v;optEls.forEach(e=>Object.assign(e.style,{borderColor:'var(--brd)',background:'transparent'}));Object.assign(wrap.style,{borderColor:'var(--blue)',background:'var(--bluel)'})}
+    ap(top,ap(el('label','fw6 f13',{cursor:'pointer',flex:'1'}),o.l));wrap.appendChild(top)
+    ap(wrap,ap(el('p','f11 tc3',{marginLeft:'24px',marginTop:'3px'}),o.d))
+    wrap.onclick=()=>{top.children[0].checked=true;top.children[0].dispatchEvent(new Event('change'))}
+    if(o.v==='status')Object.assign(wrap.style,{borderColor:'var(--blue)',background:'var(--bluel)'})
+    return wrap
+  })
+  optEls.forEach(e=>mb.appendChild(e))
+
+  // Filtro por status
+  ap(mb,ap(el('div','f12 fw6 tc2',{marginTop:'14px',marginBottom:'6px'}),'Filtrar por status (opcional):'))
+  const filterWrap=el('div','flex g6',{flexWrap:'wrap'})
+  let filterStatus=new Set(['all'])
+  const allBtn=ap(el('button','btn btn-p btn-sm'),'Todos')
+  allBtn.onclick=()=>{filterStatus=new Set(['all']);updateFilterBtns()}
+  filterWrap.appendChild(allBtn)
+  const statusBtns=Object.entries(PST).map(([k,v])=>{
+    const b=ap(el('button','btn btn-s btn-sm',{borderColor:v.bd,color:v.c}),v.l)
+    b.onclick=()=>{filterStatus.delete('all');if(filterStatus.has(k))filterStatus.delete(k);else filterStatus.add(k);if(filterStatus.size===0)filterStatus.add('all');updateFilterBtns()}
+    return{k,v,b}
+  })
+  statusBtns.forEach(x=>filterWrap.appendChild(x.b))
+  mb.appendChild(filterWrap)
+  function updateFilterBtns(){
+    const isAll=filterStatus.has('all')
+    allBtn.className='btn btn-sm '+(isAll?'btn-p':'btn-s')
+    statusBtns.forEach(({k,v,b})=>{const on=!isAll&&filterStatus.has(k);b.style.background=on?v.bg:'transparent';b.style.color=on?v.c:'var(--t2)';b.style.borderColor=on?v.c:'var(--brd)';b.style.fontWeight=on?'600':'400'})
+  }
+
+  const mf=el('div','modal-f')
+  const can=ap(el('button','btn btn-s'),'Cancelar');can.onclick=()=>ov.remove()
+  const gen=ap(el('button','btn btn-p'),'Gerar relatório →')
+  gen.onclick=()=>{ov.remove();generateReport(sortBy,filterStatus)}
+  ap(mf,can,gen);ap(mo,mh,mb,mf);ov.appendChild(mo);document.body.appendChild(ov)
+}
+
+function generateReport(sortBy,filterStatus){
+  // 1. Filtrar
+  let data=[...prospects]
+  if(!filterStatus.has('all')&&filterStatus.size>0){
+    data=data.filter(p=>filterStatus.has(pstN(p.status)))
+  }
+  // 2. Ordenar
+  const pstOrder=Object.keys(PST)
+  if(sortBy==='status')data.sort((a,b)=>pstOrder.indexOf(pstN(a.status))-pstOrder.indexOf(pstN(b.status)))
+  else if(sortBy==='name')data.sort((a,b)=>(a.name||'').localeCompare(b.name||'','pt-BR'))
+  else if(sortBy==='company')data.sort((a,b)=>(a.companyName||a.name||'').localeCompare(b.companyName||b.name||'','pt-BR'))
+  else if(sortBy==='value')data.sort((a,b)=>(Number(b.value)||0)-(Number(a.value)||0))
+  else if(sortBy==='date')data.sort((a,b)=>{const ta=a.createdAt?.toDate?.()?.getTime()||0;const tb=b.createdAt?.toDate?.()?.getTime()||0;return tb-ta})
+
+  const sortLabels={status:'Status do pipeline',name:'Nome A-Z',company:'Empresa A-Z',value:'Valor (maior primeiro)',date:'Data (mais recente)'}
+  const nowStr=new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'})
+  const totalValor=data.filter(p=>p.value).reduce((s,p)=>s+Number(p.value),0)
+
+  // 3. Montar overlay
+  const rov=el('div','overlay',{alignItems:'flex-start',paddingTop:'16px'})
+  const rmo=el('div','',{background:'#fff',borderRadius:'14px',width:'100%',maxWidth:'980px',maxHeight:'92vh',overflow:'auto',boxShadow:'0 25px 60px rgba(0,0,0,.3)',margin:'auto'})
+
+  // Cabeçalho fixo
+  const rh=el('div','',{background:'#0F172A',padding:'14px 20px',borderRadius:'14px 14px 0 0',display:'flex',alignItems:'center',justifyContent:'space-between',position:'sticky',top:'0',zIndex:'10'})
+  ap(rh,ap(el('span','',{color:'#fff',fontSize:'15px',fontWeight:'700'}),'📊 Relatório de Prospects'))
+  const rbtns=el('div','',{display:'flex',gap:'8px'})
+  const pBtn=ap(el('button','',{background:'#2563EB',color:'#fff',border:'none',cursor:'pointer',fontSize:'12px',padding:'6px 14px',borderRadius:'7px',fontFamily:'inherit',fontWeight:'600'}),'🖨️ Imprimir / Salvar PDF')
+  pBtn.onclick=()=>window.print()
+  const cBtn=ap(el('button','',{background:'rgba(255,255,255,.12)',color:'#fff',border:'none',cursor:'pointer',fontSize:'12px',padding:'6px 12px',borderRadius:'7px',fontFamily:'inherit'}),'✕ Fechar')
+  cBtn.onclick=()=>rov.remove()
+  ap(rbtns,pBtn,cBtn);rh.appendChild(rbtns);rmo.appendChild(rh)
+
+  // Área de impressão
+  const rc=el('div','',{padding:'20px',fontFamily:'Arial,sans-serif'})
+
+  // Título e meta
+  ap(rc,
+    ap(el('h2','',{fontSize:'17px',fontWeight:'700',color:'#0F172A',marginBottom:'3px'}),'Relatório de Prospects — JSR Sistemas'),
+    ap(el('p','',{fontSize:'11px',color:'#64748B',marginBottom:'14px'}),nowStr+' · '+data.length+' prospect'+(data.length!==1?'s':'')+' · Ordem: '+sortLabels[sortBy])
+  )
+
+  // Stats
+  const sg=el('div','',{display:'flex',gap:'10px',marginBottom:'16px',flexWrap:'wrap'})
+  ;[
+    {v:data.length,l:'Total',c:'#2563EB'},
+    {v:data.filter(p=>!['fechado','nao_fechado'].includes(pstN(p.status))).length,l:'Em andamento',c:'#D97706'},
+    {v:data.filter(p=>pstN(p.status)==='fechado').length,l:'Fechados',c:'#059669'},
+    {v:data.filter(p=>pstN(p.status)==='nao_fechado').length,l:'Não fechados',c:'#DC2626'},
+    ...(totalValor>0?[{v:fmtMoney(totalValor),l:'Valor total',c:'#7C3AED'}]:[])
+  ].forEach(s=>{
+    ap(sg,ap(el('div','',{background:'#F1F5F9',borderRadius:'8px',padding:'9px 13px',borderLeft:'3px solid '+s.c,minWidth:'100px'}),
+      ap(el('div','',{fontSize:'18px',fontWeight:'700',color:s.c,lineHeight:'1',marginBottom:'1px'}),String(s.v)),
+      ap(el('div','',{fontSize:'10px',color:'#64748B'}),s.l)
+    ))
+  })
+  rc.appendChild(sg)
+
+  // Tabela
+  const tbl=el('table','',{width:'100%',borderCollapse:'collapse',fontSize:'11px'})
+  const thead=el('thead')
+  const hr=el('tr')
+  ;['Nome','Empresa','Contato','Segmento','Como achou / Indicação','Status','Interação','Valor','Observações'].forEach(h=>{
+    ap(hr,ap(el('th','',{background:'#1E293B',color:'#fff',padding:'7px 9px',textAlign:'left',fontWeight:'600',whiteSpace:'nowrap',fontSize:'11px'}),h))
+  })
+  ap(thead,hr);tbl.appendChild(thead)
+
+  const tbody=el('tbody')
+
+  function mkRow(p,i){
     const st=PST[pstN(p.status)]||PST.primeiro_contato
     const sc=PSTC[p.statusContato]
-    return `<tr>
-      <td>${p.name||'—'}</td>
-      <td>${p.companyName||'—'}</td>
-      <td>${p.contact||'—'}</td>
-      <td>${p.segment||'—'}</td>
-      <td>${p.howFound||'—'}</td>
-      <td>${p.indicatedBy||'—'}</td>
-      <td><span style="background:${st.bg};color:${st.c};border:1px solid ${st.bd};padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap">${st.l}</span></td>
-      <td>${sc?`<span style="background:${sc.bg};color:${sc.c};border:1px solid ${sc.bd};padding:2px 8px;border-radius:4px;font-size:11px">${sc.l}</span>`:'—'}</td>
-      <td>${p.qtdEmpresas?p.qtdEmpresas+' emp.':'—'}</td>
-      <td style="font-weight:600;color:#059669">${p.value?fmtMoney(p.value):'—'}</td>
-      <td style="max-width:200px;font-size:11px;color:#64748B">${p.notes||'—'}</td>
-    </tr>`
-  }).join('')
+    const tr=el('tr','',{background:i%2===0?'#fff':'#F8FAFC'})
+    const td=(t,extra)=>{const d=el('td','',{padding:'6px 9px',borderBottom:'1px solid #E2E8F0',verticalAlign:'top',fontSize:'11px',...(extra||{})});d.textContent=t||'—';return d}
+    ap(tr,td(p.name),td(p.companyName),td(p.contact),td(p.segment),td(p.howFound||p.indicatedBy))
+    // Status tag
+    const stTd=el('td','',{padding:'6px 9px',borderBottom:'1px solid #E2E8F0'})
+    ap(stTd,ap(el('span','',{background:st.bg,color:st.c,border:'1px solid '+st.bd,padding:'2px 7px',borderRadius:'4px',fontSize:'10px',fontWeight:'600',whiteSpace:'nowrap'}),st.l))
+    tr.appendChild(stTd)
+    // Interação tag
+    const scTd=el('td','',{padding:'6px 9px',borderBottom:'1px solid #E2E8F0'})
+    if(sc)ap(scTd,ap(el('span','',{background:sc.bg,color:sc.c,border:'1px solid '+sc.bd,padding:'2px 7px',borderRadius:'4px',fontSize:'10px'}),sc.l))
+    else scTd.textContent='—'
+    tr.appendChild(scTd)
+    ap(tr,td(p.value?fmtMoney(p.value):null,{fontWeight:'600',color:'#059669',whiteSpace:'nowrap'}),td(p.notes,{color:'#64748B',maxWidth:'160px'}))
+    return tr
+  }
 
-  const html=`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"/>
-  <title>Relatório de Prospects — JSR Sistemas</title>
-  <style>
-    *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:Arial,sans-serif;font-size:12px;color:#1E293B;padding:24px}
-    h1{font-size:20px;font-weight:700;color:#0F172A;margin-bottom:4px}
-    .sub{font-size:12px;color:#64748B;margin-bottom:24px}
-    .stats{display:flex;gap:16px;margin-bottom:24px;flex-wrap:wrap}
-    .stat{background:#F1F5F9;border-radius:8px;padding:12px 16px;min-width:120px;border-left:3px solid}
-    .stat-v{font-size:24px;font-weight:700;line-height:1;margin-bottom:2px}
-    .stat-l{font-size:11px;color:#64748B}
-    table{width:100%;border-collapse:collapse;font-size:11px}
-    th{background:#1E293B;color:#fff;padding:8px 10px;text-align:left;font-weight:600;white-space:nowrap}
-    td{padding:7px 10px;border-bottom:1px solid #E2E8F0;vertical-align:top}
-    tr:nth-child(even){background:#F8FAFC}
-    .footer{margin-top:20px;font-size:10px;color:#94A3B8;text-align:right}
-    @media print{body{padding:12px}.stats{gap:10px}}
-  </style></head><body>
-  <h1>📊 Relatório de Prospects</h1>
-  <div class="sub">JSR Sistemas · Gerado em ${now} · Total: ${total} prospect${total!==1?'s':''}</div>
-  <div class="stats">
-    <div class="stat" style="border-left-color:#2563EB"><div class="stat-v" style="color:#2563EB">${total}</div><div class="stat-l">Total</div></div>
-    <div class="stat" style="border-left-color:#D97706"><div class="stat-v" style="color:#D97706">${ativos}</div><div class="stat-l">Em andamento</div></div>
-    <div class="stat" style="border-left-color:#059669"><div class="stat-v" style="color:#059669">${fechados}</div><div class="stat-l">Fechados</div></div>
-    <div class="stat" style="border-left-color:#DC2626"><div class="stat-v" style="color:#DC2626">${naoFechados}</div><div class="stat-l">Não fechados</div></div>
-    ${totalValor>0?`<div class="stat" style="border-left-color:#7C3AED"><div class="stat-v" style="color:#7C3AED;font-size:16px">${fmtMoney(totalValor)}</div><div class="stat-l">Valor total em negociação</div></div>`:''}
-  </div>
-  <table>
-    <thead><tr><th>Nome</th><th>Empresa</th><th>Contato</th><th>Segmento</th><th>Como achou</th><th>Indicado por</th><th>Status</th><th>Interação</th><th>Empresas</th><th>Valor</th><th>Observações</th></tr></thead>
-    <tbody>${rows}</tbody>
-  </table>
-  <div class="footer">DemandFlow · JSR Sistemas · ${now}</div>
-  <script>window.onload=()=>window.print()<\/script>
-  </body></html>`
+  if(sortBy==='status'){
+    Object.entries(PST).forEach(([k,v])=>{
+      const group=data.filter(p=>pstN(p.status)===k)
+      if(!group.length)return
+      const gtr=el('tr')
+      const gtd=ap(el('td','',{background:v.bg,color:v.c,fontWeight:'700',fontSize:'12px',padding:'8px 10px',borderBottom:'2px solid '+v.bd}),v.l+' — '+group.length+' prospect'+(group.length!==1?'s':''))
+      gtd.setAttribute('colspan','9')
+      ap(gtr,gtd);tbody.appendChild(gtr)
+      group.forEach((p,i)=>tbody.appendChild(mkRow(p,i)))
+    })
+  } else {
+    data.forEach((p,i)=>tbody.appendChild(mkRow(p,i)))
+  }
 
-  const w=window.open('','_blank','width=1200,height=800')
-  if(w){w.document.write(html);w.document.close()}
-  else alert('Permita pop-ups para abrir o relatório.')
+  tbl.appendChild(tbody);rc.appendChild(tbl)
+  ap(rc,ap(el('div','',{marginTop:'14px',fontSize:'10px',color:'#94A3B8',textAlign:'right',borderTop:'1px solid #E2E8F0',paddingTop:'8px'}),'DemandFlow · JSR Sistemas · '+nowStr))
+
+  rmo.appendChild(rc);rov.appendChild(rmo);document.body.appendChild(rov)
 }
 function openProspectModal(ex){
   let f=ex?{...ex}:{name:'',companyName:'',contact:'',howFound:'',indicatedBy:'',status:'primeiro_contato',statusContato:'com_interacao',value:'',segment:'',qtdEmpresas:'',notes:''}
@@ -936,7 +1036,7 @@ function renderLogin(){
   sb.onclick=async()=>{err.style.display='none';sb.textContent='Entrando...';sb.disabled=true;try{await signInWithEmailAndPassword(auth,em,pw)}catch{err.textContent='E-mail ou senha incorretos.';err.style.display='block';sb.textContent='Entrar';sb.disabled=false}}
   pwI.onkeydown=e=>{if(e.key==='Enter')sb.click()}
   const lc=el('div','login-card')
-  ap(lc,ap(el('div','',{textAlign:'center',marginBottom:'28px'}),ap(el('div','',{width:'50px',height:'50px',borderRadius:'12px',background:'var(--blue)',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 12px',color:'#fff',fontSize:'22px',fontWeight:'700'}),'D'),ap(el('h1','',{fontSize:'22px',fontWeight:'700',marginBottom:'4px'}),'DemandFlow'),ap(el('p','tc2',{fontSize:'13px'}),'Central da sua equipe')),ap(el('div','flex',{flexDirection:'column',gap:'11px'}),ap(ap(el('div','form-g',{marginBottom:'0'}),ap(el('label','form-l'),'E-mail')),emI),ap(ap(el('div','form-g',{marginBottom:'0'}),ap(el('label','form-l'),'Senha')),pwI),err,sb))
+  ap(lc,ap(el('div','',{textAlign:'center',marginBottom:'28px'}),ap(el('div','',{width:'50px',height:'50px',borderRadius:'12px',background:'var(--blue)',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 12px',color:'#fff',fontSize:'22px',fontWeight:'700'}),'D'),ap(el('h1','',{fontSize:'22px',fontWeight:'700',marginBottom:'4px'}),'DemandFlow'),ap(el('p','tc2',{fontSize:'13px'}),'Central da sua equipe'),ap(el('span','',{display:'inline-block',marginTop:'6px',padding:'2px 10px',borderRadius:'20px',background:'#EFF6FF',color:'#2563EB',fontSize:'10px',fontWeight:'600',border:'1px solid #BFDBFE'}),'versão 4.2')),ap(el('div','flex',{flexDirection:'column',gap:'11px'}),ap(ap(el('div','form-g',{marginBottom:'0'}),ap(el('label','form-l'),'E-mail')),emI),ap(ap(el('div','form-g',{marginBottom:'0'}),ap(el('label','form-l'),'Senha')),pwI),err,sb))
   ap(root,ap(el('div','login-bg'),lc,ap(el('p','',{textAlign:'center',fontSize:'12px',color:'rgba(255,255,255,.4)',marginTop:'14px'}),'Sem acesso? Solicite ao administrador.')))
 }
 

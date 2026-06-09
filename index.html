@@ -140,12 +140,12 @@ input:focus,select:focus,textarea:focus{border-color:var(--blue);box-shadow:0 0 
 .notice-h{padding:14px 16px 10px;display:flex;align-items:flex-start;gap:10px}
 .notice-b{padding:0 16px 14px}
 
-.updates-wrap{overflow-y:auto;overflow-x:scroll;max-height:calc(100vh - 200px);border-radius:var(--r);border:1px solid var(--brd);background:var(--card);box-shadow:var(--sh);scrollbar-width:thin;scrollbar-color:#CBD5E1 #F1F5F9}
-.updates-wrap::-webkit-scrollbar{width:10px;height:10px;display:block!important}
-.updates-wrap::-webkit-scrollbar-track{background:#F1F5F9}
-.updates-wrap::-webkit-scrollbar-thumb{background:#94A3B8;border-radius:5px;border:2px solid #F1F5F9}
-.updates-wrap::-webkit-scrollbar-thumb:hover{background:#64748B}
-.updates-wrap::-webkit-scrollbar-corner{background:#F1F5F9}
+.updates-wrap{overflow:scroll;max-height:calc(100vh - 210px);border-radius:var(--r);border:1px solid var(--brd);background:var(--card);box-shadow:var(--sh)}
+.updates-wrap::-webkit-scrollbar{width:12px;height:12px}
+.updates-wrap::-webkit-scrollbar-track{background:#E2E8F0}
+.updates-wrap::-webkit-scrollbar-thumb{background:#64748B;border-radius:6px;border:3px solid #E2E8F0}
+.updates-wrap::-webkit-scrollbar-thumb:hover{background:#334155}
+.updates-wrap::-webkit-scrollbar-corner{background:#E2E8F0}
 .updates-wrap table{min-width:1600px;table-layout:fixed}
 .sort-th{cursor:pointer;user-select:none;transition:background .15s}
 .sort-th:hover{background:#EFF6FF!important}
@@ -449,7 +449,7 @@ function buildSidebar(){
   const isA=CP?.role==='admin'
   const sb=el('div','sb')
   const logo=el('div','sb-logo')
-  ap(logo,ap(el('div','sb-logo-icon'),'D'),ap(el('div',''),ap(el('div','sb-logo-text'),'DemandFlow'),ap(el('div','sb-logo-sub'),'Central da Equipe · v5.5 ✦')))
+  ap(logo,ap(el('div','sb-logo-icon'),'D'),ap(el('div',''),ap(el('div','sb-logo-text'),'DemandFlow'),ap(el('div','sb-logo-sub'),'Central da Equipe · v5.7 ✦')))
   sb.appendChild(logo)
   const nav=el('div','sb-nav')
   ap(nav,ap(el('div','sb-sec'),'Menu'))
@@ -1823,8 +1823,7 @@ function renderPortal(){
     if(!consent){errEl.textContent='Aceite os termos de uso dos dados para continuar.';errEl.style.display='block';return}
     btn.disabled=true;btn.textContent='Acessando...'
     try{
-      // Autenticação anônima para permissão segura ao Firestore
-      await signInAnonymously(auth)
+      // Acessa diretamente (regras do Firestore permitem leitura pública de updates)
       // Busca ou cria registro do cliente
       const emailHash=btoa(email.toLowerCase().trim()).replace(/=/g,'')
       const clientRef=doc(db,'clientPortal',emailHash)

@@ -449,7 +449,7 @@ function buildSidebar(){
   const isA=CP?.role==='admin'
   const sb=el('div','sb')
   const logo=el('div','sb-logo')
-  ap(logo,ap(el('div','sb-logo-icon'),'D'),ap(el('div',''),ap(el('div','sb-logo-text'),'DemandFlow'),ap(el('div','sb-logo-sub'),'Central da Equipe · v5.8 ✦')))
+  ap(logo,ap(el('div','sb-logo-icon'),'D'),ap(el('div',''),ap(el('div','sb-logo-text'),'DemandFlow'),ap(el('div','sb-logo-sub'),'Central da Equipe · v6.0 — Versão Teste ✦')))
   sb.appendChild(logo)
   const nav=el('div','sb-nav')
   ap(nav,ap(el('div','sb-sec'),'Menu'))
@@ -715,9 +715,52 @@ function buildUpdates(){
   }
   w.appendChild(h)
 
-  // Sort state
+  // Barra de filtro
+  const filterBar=el('div','flex g8 mb12',{flexWrap:'wrap',alignItems:'center'})
+  const searchInp=el('input','',{flex:'1',minWidth:'160px',fontSize:'12px'})
+  searchInp.placeholder='🔍 Buscar por título, tela, descrição...'
+  let filterBlock='',filterMod='',filterCat='',searchTxt=''
+  searchInp.oninput=e=>{searchTxt=e.target.value.toLowerCase();redraw()}
+
+  const blkSel=el('select','',{fontSize:'12px',padding:'8px 10px',borderRadius:'8px',border:'1px solid var(--brd)'})
+  blkSel.innerHTML='<option value="">Todos os blocos</option>'+updateBlocks.map(b=>`<option value="${b.id}">${b.name}</option>`).join('')
+  blkSel.onchange=e=>{filterBlock=e.target.value;redraw()}
+
+  const modSel=el('select','',{fontSize:'12px',padding:'8px 10px',borderRadius:'8px',border:'1px solid var(--brd)'})
+  modSel.innerHTML='<option value="">Todos os módulos</option>'+Object.entries(DEV_MOD).map(([k,v])=>`<option value="${k}">${v.l}</option>`).join('')
+  modSel.onchange=e=>{filterMod=e.target.value;redraw()}
+
+  const catSel=el('select','',{fontSize:'12px',padding:'8px 10px',borderRadius:'8px',border:'1px solid var(--brd)'})
+  catSel.innerHTML='<option value="">Todos os tipos</option>'+Object.entries(DEV_CAT).map(([k,v])=>`<option value="${k}">${v.l}</option>`).join('')
+  catSel.onchange=e=>{filterCat=e.target.value;redraw()}
+
+  const clearBtn=ap(el('button','btn btn-s btn-sm'),'✕ Limpar')
+  clearBtn.onclick=()=>{searchInp.value='';blkSel.value='';modSel.value='';catSel.value='';searchTxt='';filterBlock='';filterMod='';filterCat='';redraw()}
+
+  const totalLbl=ap(el('span','f11 tc3',{whiteSpace:'nowrap'}),'')
+
+  ap(filterBar,searchInp,blkSel,modSel,catSel,clearBtn,totalLbl)
+  w.appendChild(filterBar)
+
+  function getFiltered(){
+    return updates.filter(u=>{
+      if(filterBlock&&u.blockId!==filterBlock)return false
+      if(filterMod&&u.devMod!==filterMod)return false
+      if(filterCat&&u.devCat!==filterCat)return false
+      if(searchTxt){const s=((u.title||'')+(u.screenName||'')+(u.description||'')).toLowerCase();if(!s.includes(searchTxt))return false}
+      return true
+    })
+  }
   let sortCol=null,sortDir=1
   let dragSrc=null
+
+  function redraw(){renderRows(tbody)}
+
+  function getSorted(){
+    const base=getFiltered()
+    if(!sortCol)return base
+    return[...base].sort((a,b)=>{const va=String(a[sortCol]||'').toLowerCase();const vb=String(b[sortCol]||'').toLowerCase();return va<vb?-sortDir:va>vb?sortDir:0})
+  }
 
   // Tabela com scroll vertical
   // Controle de scroll horizontal
@@ -728,33 +771,36 @@ function buildUpdates(){
 
   const tblWrap=el('div','updates-wrap')
 
-  // Barra de scroll fake sempre visível ABAIXO da tabela
-  const fakeScrollOuter=el('div','',{
-    overflowX:'scroll',overflowY:'hidden',height:'18px',
-    background:'#E2E8F0',borderRadius:'0 0 var(--r) var(--r)',
-    border:'1px solid var(--brd)',borderTop:'none',
-    scrollbarWidth:'thin',scrollbarColor:'#64748B #E2E8F0'
-  })
-  fakeScrollOuter.style.cssText+=';cursor:pointer'
-  const fakeScrollInner=el('div','',{height:'1px',minWidth:'1600px'})
-  fakeScrollOuter.appendChild(fakeScrollInner)
+  // Barra de scroll customizada JS (sempre visível em qualquer OS/browser)
+  const customScroll=el('div','custom-hscroll')
+  const scrollThumb=el('div','custom-hscroll-thumb')
+  customScroll.appendChild(scrollThumb)
 
-  // Sincronizar scroll bidirecional
-  let syncing=false
-  fakeScrollOuter.addEventListener('scroll',()=>{if(syncing)return;syncing=true;tblWrap.scrollLeft=fakeScrollOuter.scrollLeft;syncing=false})
-  tblWrap.addEventListener('scroll',()=>{if(syncing)return;syncing=true;fakeScrollOuter.scrollLeft=tblWrap.scrollLeft;syncing=false})
+  function updateThumb(){
+    const w=tblWrap,ratio=w.clientWidth/w.scrollWidth
+    const thumbW=Math.max(40,ratio*customScroll.clientWidth)
+    const maxLeft=customScroll.clientWidth-thumbW
+    const pct=w.scrollLeft/(w.scrollWidth-w.clientWidth)
+    scrollThumb.style.width=thumbW+'px'
+    scrollThumb.style.left=(pct*maxLeft)+'px'
+  }
+  tblWrap.addEventListener('scroll',updateThumb)
+  window.addEventListener('resize',updateThumb)
+  setTimeout(updateThumb,100)
 
-  // Estilo da barra fake
-  fakeScrollOuter.style.setProperty('--sb-size','8px')
-  const fakeScrollStyle=document.createElement('style')
-  fakeScrollStyle.textContent=`
-    .fake-hscroll::-webkit-scrollbar{height:14px!important}
-    .fake-hscroll::-webkit-scrollbar-track{background:#E2E8F0!important;border-radius:0 0 10px 10px!important}
-    .fake-hscroll::-webkit-scrollbar-thumb{background:#64748B!important;border-radius:7px!important;border:3px solid #E2E8F0!important}
-    .fake-hscroll::-webkit-scrollbar-thumb:hover{background:#1E293B!important}
-  `
-  document.head.appendChild(fakeScrollStyle)
-  fakeScrollOuter.className='fake-hscroll'
+  // Arrastar o thumb
+  let drag=false,dragStartX=0,dragStartScrollLeft=0
+  scrollThumb.addEventListener('mousedown',e=>{drag=true;dragStartX=e.clientX;dragStartScrollLeft=tblWrap.scrollLeft;scrollThumb.classList.add('dragging');e.preventDefault()})
+  scrollThumb.addEventListener('touchstart',e=>{drag=true;dragStartX=e.touches[0].clientX;dragStartScrollLeft=tblWrap.scrollLeft},{ passive:true })
+  document.addEventListener('mousemove',e=>{if(!drag)return;const dx=e.clientX-dragStartX;const ratio=tblWrap.scrollWidth/customScroll.clientWidth;tblWrap.scrollLeft=dragStartScrollLeft+dx*ratio})
+  document.addEventListener('touchmove',e=>{if(!drag)return;const dx=e.touches[0].clientX-dragStartX;const ratio=tblWrap.scrollWidth/customScroll.clientWidth;tblWrap.scrollLeft=dragStartScrollLeft+dx*ratio},{passive:true})
+  document.addEventListener('mouseup',()=>{drag=false;scrollThumb.classList.remove('dragging')})
+  document.addEventListener('touchend',()=>{drag=false})
+
+  // Clicar na track para pular
+  customScroll.addEventListener('click',e=>{if(e.target===scrollThumb)return;const rect=customScroll.getBoundingClientRect();const pct=(e.clientX-rect.left)/customScroll.clientWidth;tblWrap.scrollLeft=pct*(tblWrap.scrollWidth-tblWrap.clientWidth)})
+
+  const fakeScrollOuter=customScroll
   const tbl=el('table','',{width:'100%',borderCollapse:'collapse',fontSize:'13px',minWidth:'1200px'})
   const thead=el('thead','',{position:'sticky',top:'0',zIndex:'5'})
 
@@ -809,14 +855,6 @@ function buildUpdates(){
   w.appendChild(tblWrap)
   w.appendChild(fakeScrollOuter) // barra de scroll sempre visível
 
-  function getSorted(){
-    if(!sortCol)return[...updates]
-    return[...updates].sort((a,b)=>{
-      const va=String(a[sortCol]||'').toLowerCase()
-      const vb=String(b[sortCol]||'').toLowerCase()
-      return va<vb?-sortDir:va>vb?sortDir:0
-    })
-  }
 
   function renderRows(tb){
     if(!tb)return
@@ -825,6 +863,8 @@ function buildUpdates(){
     newRows.forEach(r=>tb.appendChild(r))
 
     const sorted=getSorted()
+    if(typeof totalLbl!=='undefined')totalLbl.textContent=sorted.length+' de '+updates.length+' registro'+(updates.length!==1?'s':'')
+    setTimeout(updateThumb,50)
     if(!sorted.length&&!newRows.length){
       const tr=el('tr')
       const td=ap(el('td','',{padding:'20px',textAlign:'center',color:'var(--t3)',fontSize:'13px'}),

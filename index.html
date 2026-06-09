@@ -449,7 +449,7 @@ function buildSidebar(){
   const isA=CP?.role==='admin'
   const sb=el('div','sb')
   const logo=el('div','sb-logo')
-  ap(logo,ap(el('div','sb-logo-icon'),'D'),ap(el('div',''),ap(el('div','sb-logo-text'),'DemandFlow'),ap(el('div','sb-logo-sub'),'Central da Equipe · v6.2 ✦')))
+  ap(logo,ap(el('div','sb-logo-icon'),'D'),ap(el('div',''),ap(el('div','sb-logo-text'),'DemandFlow'),ap(el('div','sb-logo-sub'),'Central da Equipe · v6.3 ✦')))
   sb.appendChild(logo)
   const nav=el('div','sb-nav')
   ap(nav,ap(el('div','sb-sec'),'Menu'))
@@ -715,60 +715,56 @@ function buildUpdates(){
   }
   w.appendChild(h)
 
-  // Barra de ordenação rápida
-  const sortBar=el('div','flex aic g6 mb8',{flexWrap:'wrap'})
-  ap(sortBar,ap(el('span','f11 fw6 tc2',{marginRight:'4px'}),'Ordenar:'))
+  // ── Barra única compacta: filtros + ordenação ─────────────────────────────
+  const ctrlBar=el('div','flex g8 mb10',{flexWrap:'wrap',alignItems:'center',padding:'8px 12px',background:'#F8FAFC',border:'1px solid var(--brd)',borderRadius:'10px'})
 
-  const SORT_OPTS=[
-    {l:'📅 Mais recente',key:'createdAt',dir:-1,fn:(a,b)=>{const ta=a.createdAt?.toDate?.()?.getTime()||0;const tb2=b.createdAt?.toDate?.()?.getTime()||0;return tb2-ta}},
-    {l:'📅 Mais antigo',key:'createdAt_asc',dir:1,fn:(a,b)=>{const ta=a.createdAt?.toDate?.()?.getTime()||0;const tb2=b.createdAt?.toDate?.()?.getTime()||0;return ta-tb2}},
-    {l:'🔤 A → Z',key:'title',dir:1,fn:(a,b)=>(a.title||'').localeCompare(b.title||'','pt-BR')},
-    {l:'🔤 Z → A',key:'title_desc',dir:-1,fn:(a,b)=>(b.title||'').localeCompare(a.title||'','pt-BR')},
-    {l:'🔢 Versão ↑',key:'version',dir:1,fn:(a,b)=>(a.version||'').localeCompare(b.version||'','pt-BR',{numeric:true})},
-    {l:'🔢 Versão ↓',key:'version_desc',dir:-1,fn:(a,b)=>(b.version||'').localeCompare(a.version||'','pt-BR',{numeric:true})},
-    {l:'📦 Bloco',key:'blockId',dir:1,fn:(a,b)=>(a.blockId||'zzz').localeCompare(b.blockId||'zzz')},
-  ]
-
-  let activeSortFn=SORT_OPTS[0].fn
-  let activeSortKey=SORT_OPTS[0].key
-
-  SORT_OPTS.forEach(opt=>{
-    const btn=ap(el('button','btn btn-xs',{fontSize:'11px',padding:'4px 9px',borderRadius:'6px',border:'1px solid var(--brd)',background:'transparent',cursor:'pointer',fontFamily:'inherit',color:'var(--t2)',transition:'all .15s',whiteSpace:'nowrap'}),opt.l)
-    if(opt.key===activeSortKey){btn.style.background='var(--blue)';btn.style.color='#fff';btn.style.borderColor='var(--blue)'}
-    btn.onclick=()=>{
-      activeSortFn=opt.fn;activeSortKey=opt.key
-      sortBar.querySelectorAll('button').forEach(b=>{b.style.background='transparent';b.style.color='var(--t2)';b.style.borderColor='var(--brd)'})
-      btn.style.background='var(--blue)';btn.style.color='#fff';btn.style.borderColor='var(--blue)'
-      redraw()
-    }
-    sortBar.appendChild(btn)
-  })
-  w.appendChild(sortBar)
-  const filterBar=el('div','flex g8 mb12',{flexWrap:'wrap',alignItems:'center'})
-  const searchInp=el('input','',{flex:'1',minWidth:'160px',fontSize:'12px'})
-  searchInp.placeholder='🔍 Buscar por título, tela, descrição...'
+  const searchInp=el('input','',{fontSize:'12px',flex:'1',minWidth:'140px'})
+  searchInp.placeholder='🔍 Buscar título, tela...'
   let filterBlock='',filterMod='',filterCat='',searchTxt=''
   searchInp.oninput=e=>{searchTxt=e.target.value.toLowerCase();redraw()}
 
-  const blkSel=el('select','',{fontSize:'12px',padding:'8px 10px',borderRadius:'8px',border:'1px solid var(--brd)'})
-  blkSel.innerHTML='<option value="">Todos os blocos</option>'+updateBlocks.map(b=>`<option value="${b.id}">${b.name}</option>`).join('')
+  const blkSel=el('select','',{fontSize:'12px',padding:'6px 8px',borderRadius:'7px',border:'1px solid var(--brd)',background:'#fff'})
+  blkSel.innerHTML='<option value="">Bloco</option>'+updateBlocks.map(b=>`<option value="${b.id}">${b.name}</option>`).join('')
   blkSel.onchange=e=>{filterBlock=e.target.value;redraw()}
 
-  const modSel=el('select','',{fontSize:'12px',padding:'8px 10px',borderRadius:'8px',border:'1px solid var(--brd)'})
-  modSel.innerHTML='<option value="">Todos os módulos</option>'+Object.entries(DEV_MOD).map(([k,v])=>`<option value="${k}">${v.l}</option>`).join('')
+  const modSel=el('select','',{fontSize:'12px',padding:'6px 8px',borderRadius:'7px',border:'1px solid var(--brd)',background:'#fff'})
+  modSel.innerHTML='<option value="">Módulo</option>'+Object.entries(DEV_MOD).map(([k,v])=>`<option value="${k}">${v.l}</option>`).join('')
   modSel.onchange=e=>{filterMod=e.target.value;redraw()}
 
-  const catSel=el('select','',{fontSize:'12px',padding:'8px 10px',borderRadius:'8px',border:'1px solid var(--brd)'})
-  catSel.innerHTML='<option value="">Todos os tipos</option>'+Object.entries(DEV_CAT).map(([k,v])=>`<option value="${k}">${v.l}</option>`).join('')
+  const catSel=el('select','',{fontSize:'12px',padding:'6px 8px',borderRadius:'7px',border:'1px solid var(--brd)',background:'#fff'})
+  catSel.innerHTML='<option value="">Tipo dev</option>'+Object.entries(DEV_CAT).map(([k,v])=>`<option value="${k}">${v.l}</option>`).join('')
   catSel.onchange=e=>{filterCat=e.target.value;redraw()}
 
-  const clearBtn=ap(el('button','btn btn-s btn-sm'),'✕ Limpar')
-  clearBtn.onclick=()=>{searchInp.value='';blkSel.value='';modSel.value='';catSel.value='';searchTxt='';filterBlock='';filterMod='';filterCat='';redraw()}
+  // Ordenação como select compacto
+  const SORT_OPTS=[
+    {l:'📌 Ordem manual',key:'manual',fn:null},
+    {l:'📅 Mais recente',key:'createdAt',fn:(a,b)=>{const ta=a.createdAt?.toDate?.()?.getTime()||0;const tb2=b.createdAt?.toDate?.()?.getTime()||0;return tb2-ta}},
+    {l:'📅 Mais antigo',key:'createdAt_asc',fn:(a,b)=>{const ta=a.createdAt?.toDate?.()?.getTime()||0;const tb2=b.createdAt?.toDate?.()?.getTime()||0;return ta-tb2}},
+    {l:'🔤 Título A→Z',key:'title',fn:(a,b)=>(a.title||'').localeCompare(b.title||'','pt-BR')},
+    {l:'🔤 Título Z→A',key:'title_desc',fn:(a,b)=>(b.title||'').localeCompare(a.title||'','pt-BR')},
+    {l:'🔢 Versão ↑',key:'version',fn:(a,b)=>(a.version||'').localeCompare(b.version||'','pt-BR',{numeric:true})},
+    {l:'🔢 Versão ↓',key:'version_desc',fn:(a,b)=>(b.version||'').localeCompare(a.version||'','pt-BR',{numeric:true})},
+    {l:'📦 Por bloco',key:'blockId',fn:(a,b)=>(a.blockId||'zzz').localeCompare(b.blockId||'zzz')},
+  ]
+  const sortSel=el('select','',{fontSize:'12px',padding:'6px 8px',borderRadius:'7px',border:'1px solid var(--brd)',background:'#fff'})
+  sortSel.innerHTML=SORT_OPTS.map(o=>`<option value="${o.key}">${o.l}</option>`).join('')
+  let activeSortFn=null
+  let activeSortKey='manual'
+  sortSel.onchange=e=>{
+    activeSortKey=e.target.value
+    const opt=SORT_OPTS.find(o=>o.key===activeSortKey)
+    activeSortFn=opt?.fn||null
+    redraw()
+  }
+
+  const clearBtn=ap(el('button','btn btn-s btn-xs',{whiteSpace:'nowrap'}),'✕')
+  clearBtn.title='Limpar filtros'
+  clearBtn.onclick=()=>{searchInp.value='';blkSel.value='';modSel.value='';catSel.value='';sortSel.value='manual';searchTxt='';filterBlock='';filterMod='';filterCat='';activeSortFn=null;activeSortKey='manual';redraw()}
 
   const totalLbl=ap(el('span','f11 tc3',{whiteSpace:'nowrap'}),'')
+  ap(ctrlBar,searchInp,blkSel,modSel,catSel,ap(el('span','f11 tc3',{flexShrink:'0'}),'Ordenar:'),sortSel,clearBtn,totalLbl)
+  w.appendChild(ctrlBar)
 
-  ap(filterBar,searchInp,blkSel,modSel,catSel,clearBtn,totalLbl)
-  w.appendChild(filterBar)
 
   function getFiltered(){
     return updates.filter(u=>{
@@ -786,7 +782,24 @@ function buildUpdates(){
 
   function getSorted(){
     const base=getFiltered()
+    if(!activeSortFn||activeSortKey==='manual'){
+      // Ordem manual: respeita a ordem salva no Firestore
+      try{
+        const savedOrder=JSON.parse(localStorage.getItem('updates_order_'+CP?.uid)||'[]')
+        if(savedOrder.length){
+          const idxMap=Object.fromEntries(savedOrder.map((id,i)=>[id,i]))
+          return[...base].sort((a,b)=>(idxMap[a.id]??9999)-(idxMap[b.id]??9999))
+        }
+      }catch{}
+      return base
+    }
     return[...base].sort(activeSortFn)
+  }
+
+  // Captura a ordem visual atual das linhas (para impressão e portal)
+  function getVisualOrder(){
+    const rows=tbody?.querySelectorAll('tr[data-uid]')||[]
+    return Array.from(rows).map(r=>r.dataset.uid).filter(Boolean)
   }
 
   // Tabela com scroll vertical
@@ -915,6 +928,7 @@ function buildUpdates(){
             // Save new order to Firestore
             const newOrder=[...tb.querySelectorAll('tr:not([data-new])')].map(r=>r.dataset.uid).filter(Boolean)
             saveOrder(newOrder)
+            localStorage.setItem('updates_order_'+CP?.uid,JSON.stringify(newOrder))
           }
         })
         tr.dataset.uid=u.id
@@ -1073,13 +1087,21 @@ function printUpdates(){
   const mf=el('div','modal-f')
   const can=ap(el('button','btn btn-s'),'Cancelar');can.onclick=()=>ov.remove()
   const gen=ap(el('button','btn btn-p'),'Gerar impressão')
-  gen.onclick=()=>{ov.remove();doprint(state)}
+  gen.onclick=()=>{ov.remove()
+    // Captura ordem visual atual da tabela
+    const visOrder=Array.from(document.querySelectorAll('#updates-tbody tr[data-uid]')).map(r=>r.dataset.uid)
+    const orderedUpdates=visOrder.length
+      ?visOrder.map(id=>updates.find(u=>u.id===id)).filter(Boolean)
+      :updates
+    doprint(cols,orderedUpdates)
+  }
   ap(mf,can,gen);ap(mo,mh,mb,mf);ov.appendChild(mo);document.body.appendChild(ov)
 
-  function doprint(cols){
+  function doprint(cols,orderedUpdates){
+    const data=orderedUpdates||updates
     const now=new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'})
     const headers=COLS.filter(c=>cols[c.key]).map(c=>`<th>${c.l}</th>`).join('')
-    const rows=updates.map((u,i)=>{
+    const rows=data.map((u,i)=>{
       const tds=COLS.filter(c=>cols[c.key]).map(c=>{
         if(c.key==='idx')return `<td style="text-align:center;color:#64748B">${i+1}</td>`
         if(c.key==='title')return `<td style="font-weight:600">${u.title||''}</td>`
@@ -1961,7 +1983,9 @@ async function showPortalUpdates(client){
 
   try{
     const snap=await getDocs(query(collection(db,'updates'),orderBy('createdAt','desc')))
-    const updList=snap.docs.map(d=>({id:d.id,...d.data()}))
+    let updList=snap.docs.map(d=>({id:d.id,...d.data()}))
+    // Respeitar ordem salva
+    try{const ord=await getDoc(doc(db,'config','updates_order'));if(ord.exists()&&ord.data().order?.length){const o=ord.data().order;updList.sort((a,b)=>(o.indexOf(a.id)??999)-(o.indexOf(b.id)??999))}catch{}
 
     if(!updList.length){ap(page,ap(el('div','empty'),ap(el('div','empty-ic'),'📋'),ap(el('div','empty-t'),'Nenhuma atualização disponível')))}
     else{

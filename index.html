@@ -373,7 +373,7 @@ function buildSidebar(){
   const isA=CP?.role==='admin'
   const sb=el('div','sb')
   const logo=el('div','sb-logo')
-  ap(logo,ap(el('div','sb-logo-icon'),'D'),ap(el('div',''),ap(el('div','sb-logo-text'),'DemandFlow'),ap(el('div','sb-logo-sub'),'Central da Equipe · v4.8 ✦')))
+  ap(logo,ap(el('div','sb-logo-icon'),'D'),ap(el('div',''),ap(el('div','sb-logo-text'),'DemandFlow'),ap(el('div','sb-logo-sub'),'Central da Equipe · v4.9 ✦')))
   sb.appendChild(logo)
   const nav=el('div','sb-nav')
   ap(nav,ap(el('div','sb-sec'),'Menu'))
@@ -901,14 +901,15 @@ function importUpdateFile(file){
       const mapCat=Object.fromEntries(Object.entries(DEV_CAT).map(([k,v])=>[v.l.toLowerCase(),k]))
       const mapMod=Object.fromEntries(Object.entries(DEV_MOD).map(([k,v])=>[v.l.toLowerCase(),k]))
 
+      const str=v=>String(v??'').trim()
       const parsed=rows.map(r=>({
-        title:(r['Título*']||r['Título']||'').trim(),
-        procTipo:mapProc[(r['Tipo de Processo']||'').trim().toLowerCase()]||'',
-        screenName:(r['Nome da Tela']||'').trim(),
-        version:(r['Versão']||'').trim(),
-        devCat:mapCat[(r['Tipo de Desenvolvimento']||'').trim().toLowerCase()]||'',
-        devMod:mapMod[(r['Módulo']||'').trim().toLowerCase()]||'',
-        description:(r['Descrição']||'').trim(),
+        title:str(r['Título*']||r['Título']),
+        procTipo:mapProc[str(r['Tipo de Processo']).toLowerCase()]||'',
+        screenName:str(r['Nome da Tela']),
+        version:str(r['Versão']),
+        devCat:mapCat[str(r['Tipo de Desenvolvimento']).toLowerCase()]||'',
+        devMod:mapMod[str(r['Módulo']).toLowerCase()]||'',
+        description:str(r['Descrição']),
       })).filter(r=>r.title)
 
       if(!parsed.length){alert('Nenhuma linha com título encontrada na planilha.');return}

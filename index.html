@@ -140,8 +140,8 @@ input:focus,select:focus,textarea:focus{border-color:var(--blue);box-shadow:0 0 
 .notice-h{padding:14px 16px 10px;display:flex;align-items:flex-start;gap:10px}
 .notice-b{padding:0 16px 14px}
 
-.updates-wrap{overflow:scroll;max-height:calc(100vh - 210px);border-radius:var(--r);border:1px solid var(--brd);background:var(--card);box-shadow:var(--sh)}
-.updates-wrap::-webkit-scrollbar{width:12px;height:12px}
+.updates-wrap{overflow-y:auto;overflow-x:scroll;max-height:calc(100vh - 210px);border-radius:var(--r) var(--r) 0 0;border:1px solid var(--brd);border-bottom:none;background:var(--card);box-shadow:var(--sh);scrollbar-width:none}
+.updates-wrap::-webkit-scrollbar{width:12px;height:0px}
 .updates-wrap::-webkit-scrollbar-track{background:#E2E8F0}
 .updates-wrap::-webkit-scrollbar-thumb{background:#64748B;border-radius:6px;border:3px solid #E2E8F0}
 .updates-wrap::-webkit-scrollbar-thumb:hover{background:#334155}
@@ -449,7 +449,7 @@ function buildSidebar(){
   const isA=CP?.role==='admin'
   const sb=el('div','sb')
   const logo=el('div','sb-logo')
-  ap(logo,ap(el('div','sb-logo-icon'),'D'),ap(el('div',''),ap(el('div','sb-logo-text'),'DemandFlow'),ap(el('div','sb-logo-sub'),'Central da Equipe · v5.7 ✦')))
+  ap(logo,ap(el('div','sb-logo-icon'),'D'),ap(el('div',''),ap(el('div','sb-logo-text'),'DemandFlow'),ap(el('div','sb-logo-sub'),'Central da Equipe · v5.8 ✦')))
   sb.appendChild(logo)
   const nav=el('div','sb-nav')
   ap(nav,ap(el('div','sb-sec'),'Menu'))
@@ -720,19 +720,41 @@ function buildUpdates(){
   let dragSrc=null
 
   // Tabela com scroll vertical
-  // Controles de scroll horizontal
-  const scrollCtrl=el('div','flex aic jcsb mb8')
-  const scrollHint=ap(el('span','f11 tc3'),'← Deslize a tabela para ver todas as colunas →')
-  const scrollBtns=el('div','flex g6')
-  const scrollLeft=ap(el('button','btn btn-s btn-sm'),'← Esquerda')
-  const scrollRight=ap(el('button','btn btn-sm btn-p'),'Direita →')
-  ap(scrollBtns,scrollLeft,scrollRight)
-  ap(scrollCtrl,scrollHint,scrollBtns)
+  // Controle de scroll horizontal
+  const scrollCtrl=el('div','flex aic jcsb mb6')
+  const scrollHint=ap(el('span','f11 tc3'),'← Role para ver todas as colunas')
+  scrollCtrl.appendChild(scrollHint)
   w.appendChild(scrollCtrl)
 
   const tblWrap=el('div','updates-wrap')
-  scrollLeft.onclick=()=>tblWrap.scrollBy({left:-300,behavior:'smooth'})
-  scrollRight.onclick=()=>tblWrap.scrollBy({left:300,behavior:'smooth'})
+
+  // Barra de scroll fake sempre visível ABAIXO da tabela
+  const fakeScrollOuter=el('div','',{
+    overflowX:'scroll',overflowY:'hidden',height:'18px',
+    background:'#E2E8F0',borderRadius:'0 0 var(--r) var(--r)',
+    border:'1px solid var(--brd)',borderTop:'none',
+    scrollbarWidth:'thin',scrollbarColor:'#64748B #E2E8F0'
+  })
+  fakeScrollOuter.style.cssText+=';cursor:pointer'
+  const fakeScrollInner=el('div','',{height:'1px',minWidth:'1600px'})
+  fakeScrollOuter.appendChild(fakeScrollInner)
+
+  // Sincronizar scroll bidirecional
+  let syncing=false
+  fakeScrollOuter.addEventListener('scroll',()=>{if(syncing)return;syncing=true;tblWrap.scrollLeft=fakeScrollOuter.scrollLeft;syncing=false})
+  tblWrap.addEventListener('scroll',()=>{if(syncing)return;syncing=true;fakeScrollOuter.scrollLeft=tblWrap.scrollLeft;syncing=false})
+
+  // Estilo da barra fake
+  fakeScrollOuter.style.setProperty('--sb-size','8px')
+  const fakeScrollStyle=document.createElement('style')
+  fakeScrollStyle.textContent=`
+    .fake-hscroll::-webkit-scrollbar{height:14px!important}
+    .fake-hscroll::-webkit-scrollbar-track{background:#E2E8F0!important;border-radius:0 0 10px 10px!important}
+    .fake-hscroll::-webkit-scrollbar-thumb{background:#64748B!important;border-radius:7px!important;border:3px solid #E2E8F0!important}
+    .fake-hscroll::-webkit-scrollbar-thumb:hover{background:#1E293B!important}
+  `
+  document.head.appendChild(fakeScrollStyle)
+  fakeScrollOuter.className='fake-hscroll'
   const tbl=el('table','',{width:'100%',borderCollapse:'collapse',fontSize:'13px',minWidth:'1200px'})
   const thead=el('thead','',{position:'sticky',top:'0',zIndex:'5'})
 
@@ -785,6 +807,7 @@ function buildUpdates(){
   tbl.appendChild(tbody)
   tblWrap.appendChild(tbl)
   w.appendChild(tblWrap)
+  w.appendChild(fakeScrollOuter) // barra de scroll sempre visível
 
   function getSorted(){
     if(!sortCol)return[...updates]

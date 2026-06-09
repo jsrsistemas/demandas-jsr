@@ -136,12 +136,13 @@ input:focus,select:focus,textarea:focus{border-color:var(--blue);box-shadow:0 0 
 .notice-h{padding:14px 16px 10px;display:flex;align-items:flex-start;gap:10px}
 .notice-b{padding:0 16px 14px}
 
-.updates-wrap{overflow-y:auto;overflow-x:auto;max-height:calc(100vh - 200px);border-radius:var(--r);border:1px solid var(--brd);background:var(--card);box-shadow:var(--sh)}
+.updates-wrap{overflow-y:auto;overflow-x:scroll;max-height:calc(100vh - 200px);border-radius:var(--r);border:1px solid var(--brd);background:var(--card);box-shadow:var(--sh)}
 .updates-wrap::-webkit-scrollbar{width:8px;height:8px}
 .updates-wrap::-webkit-scrollbar-track{background:#F1F5F9;border-radius:4px}
 .updates-wrap::-webkit-scrollbar-thumb{background:#CBD5E1;border-radius:4px}
 .updates-wrap::-webkit-scrollbar-thumb:hover{background:#94A3B8}
 .updates-wrap::-webkit-scrollbar-corner{background:#F1F5F9}
+.updates-wrap table{min-width:1500px}
 .sort-th{cursor:pointer;user-select:none;transition:background .15s}
 .sort-th:hover{background:#EFF6FF!important}
 .sort-arrow{margin-left:4px;color:var(--t3);font-size:10px}
@@ -289,7 +290,7 @@ tr.drag-over{border-top:2px solid var(--blue)}
 <div id="app"></div>
 <script type="module">
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js'
-import{getAuth,signInWithEmailAndPassword,signOut,onAuthStateChanged,createUserWithEmailAndPassword}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js'
+import{getAuth,signInWithEmailAndPassword,signOut,onAuthStateChanged,createUserWithEmailAndPassword,signInAnonymously}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js'
 import{getFirestore,collection,addDoc,query,where,onSnapshot,orderBy,doc,updateDoc,serverTimestamp,getDoc,setDoc,getDocs,deleteDoc,arrayUnion}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js'
 import{getStorage,ref,uploadBytesResumable,getDownloadURL}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js'
 
@@ -444,7 +445,7 @@ function buildSidebar(){
   const isA=CP?.role==='admin'
   const sb=el('div','sb')
   const logo=el('div','sb-logo')
-  ap(logo,ap(el('div','sb-logo-icon'),'D'),ap(el('div',''),ap(el('div','sb-logo-text'),'DemandFlow'),ap(el('div','sb-logo-sub'),'Central da Equipe · v5.2 ✦')))
+  ap(logo,ap(el('div','sb-logo-icon'),'D'),ap(el('div',''),ap(el('div','sb-logo-text'),'DemandFlow'),ap(el('div','sb-logo-sub'),'Central da Equipe · v5.3 ✦')))
   sb.appendChild(logo)
   const nav=el('div','sb-nav')
   ap(nav,ap(el('div','sb-sec'),'Menu'))
@@ -699,8 +700,8 @@ function buildUpdates(){
     blockBtn.onclick=()=>openBlockManager()
     const printBtn=ap(el('button','btn btn-s btn-sm'),'🖨️ Imprimir')
     printBtn.onclick=()=>printUpdates()
-    const linkBtn=ap(el('button','btn btn-s btn-sm'),'🔗 Link portal')
-    linkBtn.onclick=()=>{const url=window.location.origin+window.location.pathname+'?portal';navigator.clipboard.writeText(url).then(()=>alert('✓ Link copiado!\n\n'+url)).catch(()=>prompt('Copie o link do portal:',url))}
+    const linkBtn=ap(el('button','btn btn-s btn-sm'),'🔗 Gerar link portal')
+    linkBtn.onclick=()=>openLinkGenerator()
     const expBtn=ap(el('button','btn btn-s btn-sm'),'📥 Exportar');expBtn.onclick=exportUpdateTemplate
     const impLabel=el('label','btn btn-s btn-sm',{cursor:'pointer'});impLabel.textContent='📤 Importar'
     const impInput=el('input','');impInput.type='file';impInput.accept='.xlsx,.xls';impInput.style.display='none'
@@ -1686,6 +1687,63 @@ function renderLogin(){
   ap(root,ap(el('div','login-bg'),lc,ap(el('p','',{textAlign:'center',fontSize:'12px',color:'rgba(255,255,255,.4)',marginTop:'14px'}),'Sem acesso? Solicite ao administrador.')))
 }
 
+// ── GERADOR DE LINK DO PORTAL ────────────────────────────────
+function openLinkGenerator(){
+  const ov=el('div','overlay');const mo=el('div','modal',{maxWidth:'520px'})
+  const mh=ap(el('div','modal-h'),ap(el('div','modal-t'),'🔗 Gerar link do Portal'))
+  const x=ap(el('button','modal-x'),'×');x.onclick=()=>ov.remove();mh.appendChild(x)
+  const mb=el('div','modal-b')
+
+  ap(mb,ap(el('p','f12 tc2 mb12'),'Configure a mensagem que os clientes verão ao acessar o portal:'))
+
+  // Seletor de bloco
+  const bg=ap(el('div','form-g'),ap(el('label','form-l'),'Bloco / Período de referência (opcional)'))
+  const bs=el('select','')
+  bs.innerHTML='<option value="">— Sem bloco específico —</option>'+updateBlocks.map(b=>`<option value="${b.id}">${b.name}</option>`).join('')
+  bg.appendChild(bs)
+
+  // Mensagem personalizada
+  const mg=ap(el('div','form-g'),ap(el('label','form-l'),'Mensagem de boas-vindas'))
+  const mi=el('textarea','',{resize:'vertical'});mi.rows=3
+  mi.value='Liberadas as últimas atualizações do sistema. Confira as novidades abaixo!'
+  mg.appendChild(mi)
+
+  // Atualizar mensagem ao trocar bloco
+  bs.onchange=()=>{
+    const blk=updateBlocks.find(b=>b.id===bs.value)
+    if(blk)mi.value=`Liberadas as últimas atualizações do sistema — ${blk.name}. Confira as novidades abaixo!`
+    else mi.value='Liberadas as últimas atualizações do sistema. Confira as novidades abaixo!'
+  }
+
+  // Preview do link
+  const baseUrl=window.location.origin+window.location.pathname+'?portal'
+  const linkBox=el('input','',{background:'#F8FAFC',fontSize:'11px',fontWeight:'500',marginTop:'4px'})
+  linkBox.value=baseUrl;linkBox.readOnly=true
+  ap(mb,bg,mg,ap(el('div','form-g'),ap(el('label','form-l'),'Link gerado'),linkBox))
+
+  const mf=el('div','modal-f')
+  const can=ap(el('button','btn btn-s'),'Cancelar');can.onclick=()=>ov.remove()
+
+  const copyBtn=ap(el('button','btn btn-p'),'📋 Copiar link e salvar mensagem')
+  copyBtn.onclick=async()=>{
+    // Salva a mensagem no Firestore para aparecer no portal
+    try{
+      await setDoc(doc(db,'config','portal_message'),{
+        message:mi.value.trim(),
+        blockId:bs.value||'',
+        blockName:updateBlocks.find(b=>b.id===bs.value)?.name||'',
+        updatedAt:serverTimestamp(),
+        updatedBy:CP.name
+      })
+    }catch(e){console.warn('Aviso: mensagem não salva',e)}
+    // Copia o link
+    try{await navigator.clipboard.writeText(baseUrl)}catch{prompt('Copie o link:',baseUrl)}
+    copyBtn.textContent='✓ Copiado!'
+    setTimeout(()=>{copyBtn.textContent='📋 Copiar link e salvar mensagem'},2500)
+  }
+  ap(mf,can,copyBtn);ap(mo,mh,mb,mf);ov.appendChild(mo);document.body.appendChild(ov)
+}
+
 // ── PORTAL DO CLIENTE ─────────────────────────────────────────
 function checkPortalMode(){
   return new URLSearchParams(window.location.search).has('portal')
@@ -1737,6 +1795,8 @@ function renderPortal(){
     if(!consent){errEl.textContent='Aceite os termos de uso dos dados para continuar.';errEl.style.display='block';return}
     btn.disabled=true;btn.textContent='Acessando...'
     try{
+      // Autenticação anônima para permissão segura ao Firestore
+      await signInAnonymously(auth)
       // Busca ou cria registro do cliente
       const emailHash=btoa(email.toLowerCase().trim()).replace(/=/g,'')
       const clientRef=doc(db,'clientPortal',emailHash)
@@ -1773,9 +1833,19 @@ async function showPortalUpdates(client){
   const sair=ap(el('button','btn btn-s btn-sm'),'Sair');sair.onclick=()=>{sessionStorage.removeItem('portal_client');renderPortal()}
   hdr.appendChild(sair);w.appendChild(hdr)
 
-  // Buscar atualizações
+  // Buscar mensagem personalizada e atualizações
   const page=el('div','page',{maxWidth:'860px',margin:'0 auto'})
-  ap(page,ap(el('p','f12 tc2 mb16'),`Bem-vindo(a)! Acompanhe as atualizações do sistema.`))
+
+  try{
+    // Buscar mensagem do portal
+    const msgSnap=await getDoc(doc(db,'config','portal_message'))
+    if(msgSnap.exists()&&msgSnap.data().message){
+      const msg=msgSnap.data()
+      const msgCard=el('div','',{background:'#EFF6FF',border:'1px solid #BFDBFE',borderRadius:'var(--r)',padding:'14px 18px',marginBottom:'20px',display:'flex',gap:'12px',alignItems:'flex-start'})
+      ap(msgCard,ap(el('span','',{fontSize:'22px'}),'📢'),ap(el('div',''),ap(el('div','fw6',{color:'#1D4ED8',marginBottom:'3px'}),msg.message),ap(el('div','f11',{color:'#3B82F6'}),msg.blockName?'Período: '+msg.blockName:'')))
+      page.appendChild(msgCard)
+    }
+  }catch{}
 
   try{
     const snap=await getDocs(query(collection(db,'updates'),orderBy('createdAt','desc')))

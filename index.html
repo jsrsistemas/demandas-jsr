@@ -371,6 +371,7 @@ const NAV_ITEMS=[
   {id:'notices',i:'📢',l:'Avisos'},
   {id:'updates',i:'🎓',l:'Atualizações'},
   {id:'prospects',i:'🎯',l:'Prospects'},
+  {id:'portal',i:'🔗',l:'Portal Cliente'},
 ]
 function getBadge(id){
   if(id==='demands')return demands.filter(d=>d.status==='open').length||0
@@ -383,7 +384,7 @@ function buildSidebar(){
   const isA=CP?.role==='admin'
   const sb=el('div','sb')
   const logo=el('div','sb-logo')
-  ap(logo,ap(el('div','sb-logo-icon'),'D'),ap(el('div',''),ap(el('div','sb-logo-text'),'DemandFlow'),ap(el('div','sb-logo-sub'),'Central da Equipe · v5.0 ✦')))
+  ap(logo,ap(el('div','sb-logo-icon'),'D'),ap(el('div',''),ap(el('div','sb-logo-text'),'DemandFlow'),ap(el('div','sb-logo-sub'),'Central da Equipe · v5.1 ✦')))
   sb.appendChild(logo)
   const nav=el('div','sb-nav')
   ap(nav,ap(el('div','sb-sec'),'Menu'))
@@ -634,12 +635,16 @@ function buildUpdates(){
     const btns=el('div','flex g8')
     const addBtn=ap(el('button','btn btn-p btn-sm'),'+ Adicionar linha')
     addBtn.onclick=()=>addInlineRow()
-    const expBtn=ap(el('button','btn btn-s btn-sm'),'📥 Exportar modelo');expBtn.onclick=exportUpdateTemplate
+    const printBtn=ap(el('button','btn btn-s btn-sm'),'🖨️ Imprimir')
+    printBtn.onclick=()=>printUpdates()
+    const attrBtn=ap(el('button','btn btn-s btn-sm'),'⚙️ Atributos')
+    attrBtn.onclick=()=>openAttributesPanel()
+    const expBtn=ap(el('button','btn btn-s btn-sm'),'📥 Exportar');expBtn.onclick=exportUpdateTemplate
     const impLabel=el('label','btn btn-s btn-sm',{cursor:'pointer'});impLabel.textContent='📤 Importar'
     const impInput=el('input','');impInput.type='file';impInput.accept='.xlsx,.xls';impInput.style.display='none'
     impInput.onchange=e=>{if(e.target.files[0])importUpdateFile(e.target.files[0]);impInput.value=''}
     impLabel.appendChild(impInput)
-    ap(btns,addBtn,expBtn,impLabel);h.appendChild(btns)
+    ap(btns,addBtn,printBtn,attrBtn,expBtn,impLabel);h.appendChild(btns)
   }
   w.appendChild(h)
 
@@ -649,23 +654,23 @@ function buildUpdates(){
 
   // Tabela com scroll vertical
   const tblWrap=el('div','updates-wrap')
-  const tbl=el('table','',{width:'100%',borderCollapse:'collapse',fontSize:'12px',minWidth:'900px'})
+  const tbl=el('table','',{width:'100%',borderCollapse:'collapse',fontSize:'13px',minWidth:'1200px'})
   const thead=el('thead','',{position:'sticky',top:'0',zIndex:'5'})
 
   // Colunas
   const colDefs=[
-    {l:'',w:'30px',key:null,drag:true},
-    {l:'TÍTULO',w:'200px',key:'title'},
-    {l:'PROCESSO',w:'110px',key:'procTipo'},
-    {l:'TELA',w:'120px',key:'screenName'},
-    {l:'VERSÃO',w:'65px',key:'version'},
-    {l:'TIPO DEV',w:'120px',key:'devCat'},
-    {l:'MÓDULO',w:'120px',key:'devMod'},
-    {l:'DESCRIÇÃO',w:'160px',key:'description'},
+    {l:'',w:'34px',key:null,drag:true},
+    {l:'TÍTULO',w:'260px',key:'title'},
+    {l:'PROCESSO',w:'120px',key:'procTipo'},
+    {l:'TELA',w:'150px',key:'screenName'},
+    {l:'VERSÃO',w:'70px',key:'version'},
+    {l:'TIPO DEV',w:'140px',key:'devCat'},
+    {l:'MÓDULO',w:'140px',key:'devMod'},
+    {l:'DESCRIÇÃO',w:'220px',key:'description'},
     {l:'📎',w:'42px',key:null},
-    {l:'PUBLICADO',w:'110px',key:'createdByName'},
-    {l:'VISTO',w:'90px',key:null},
-    ...(isA?[{l:'',w:'65px',key:null}]:[]),
+    {l:'PUBLICADO',w:'120px',key:'createdByName'},
+    {l:'VISTO',w:'95px',key:null},
+    ...(isA?[{l:'',w:'70px',key:null}]:[]),
   ]
 
   const hr=el('tr','',{background:'#F8FAFC'})
@@ -842,8 +847,8 @@ function buildUpdates(){
       saveBtn.disabled=true;saveBtn.textContent='...'
       try{
         const ref=await addDoc(collection(db,'updates'),{...nf,type:'none',url:'',imageUrl:'',createdBy:CU.uid,createdByName:CP.name,createdAt:serverTimestamp(),viewedBy:[{uid:CU.uid,name:CP.name,viewedAt:new Date().toISOString()}]})
-        updates.unshift({id:ref.id,...nf,type:'none',url:'',imageUrl:'',createdByName:CP.name,createdAt:{toDate:()=>new Date()},viewedBy:[{uid:CU.uid,name:CP.name}]})
-        tr.remove();renderRows(tbody)
+        tr.remove()
+        // onSnapshot vai atualizar a tabela automaticamente
       }catch(e){alert('Erro ao salvar: '+e.message);saveBtn.disabled=false;saveBtn.textContent='Salvar'}
     }
     cancelBtn.onclick=()=>tr.remove()
@@ -859,6 +864,106 @@ function buildUpdates(){
   return w
 }
 
+function printUpdates(){
+  const now=new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'})
+  const rows=updates.map((u,i)=>{
+    const st=u.procTipo&&PROC_TIPO[u.procTipo]?PROC_TIPO[u.procTipo].l:''
+    const dc=u.devCat&&DEV_CAT[u.devCat]?DEV_CAT[u.devCat].l:''
+    const dm=u.devMod&&DEV_MOD[u.devMod]?DEV_MOD[u.devMod].l:''
+    const mat=u.type==='storage_video'||u.type==='video'?'📹 Vídeo':u.type==='pdf'?'📄 PDF':u.imageUrl?'🖼 Imagem':'—'
+    const ts=u.createdAt?.toDate?.()||new Date()
+    return `<tr style="background:${i%2===0?'#fff':'#F8FAFC'}">
+      <td>${i+1}</td>
+      <td style="font-weight:600">${u.title||''}</td>
+      <td>${st}</td><td>${u.screenName||''}</td>
+      <td style="text-align:center;font-family:monospace">${u.version||''}</td>
+      <td>${dc}</td><td>${dm}</td>
+      <td style="color:#64748B">${u.description||''}</td>
+      <td style="text-align:center">${mat}</td>
+      <td>${u.createdByName||''}<br><span style="color:#64748B;font-size:10px">${ts.toLocaleDateString('pt-BR')} ${ts.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</span></td>
+    </tr>`
+  }).join('')
+  const html=`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"/>
+  <title>Atualizações — JSR Sistemas</title>
+  <style>
+    @page{size:A4 landscape;margin:1cm}
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Arial,sans-serif;font-size:10px;color:#1E293B}
+    h1{font-size:15px;font-weight:700;margin-bottom:2px}
+    .sub{font-size:10px;color:#64748B;margin-bottom:12px}
+    table{width:100%;border-collapse:collapse}
+    th{background:#1E293B;color:#fff;padding:6px 8px;text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:.4px}
+    td{padding:5px 8px;border-bottom:1px solid #E2E8F0;vertical-align:top}
+    .footer{margin-top:10px;font-size:9px;color:#94A3B8;text-align:right}
+  </style></head><body>
+  <h1>Atualizações do Sistema — JSR Sistemas</h1>
+  <div class="sub">Gerado em ${now} · ${updates.length} registro${updates.length!==1?'s':''}</div>
+  <table><thead><tr><th>#</th><th>Título</th><th>Processo</th><th>Tela</th><th>Versão</th><th>Tipo Dev</th><th>Módulo</th><th>Descrição</th><th>Material</th><th>Publicado por</th></tr></thead>
+  <tbody>${rows}</tbody></table>
+  <div class="footer">DemandFlow · JSR Sistemas · ${now}</div>
+  <script>window.onload=()=>window.print()<\/script>
+  </body></html>`
+  const pw=window.open('','_blank')
+  if(pw){pw.document.write(html);pw.document.close()}
+  else alert('Permita pop-ups para imprimir.')
+}
+
+function openAttributesPanel(){
+  const ov=el('div','overlay')
+  const mo=el('div','modal',{maxWidth:'620px'})
+  const mh=ap(el('div','modal-h'),ap(el('div','modal-t'),'⚙️ Gerenciar Atributos'))
+  const x=ap(el('button','modal-x'),'×');x.onclick=()=>ov.remove();mh.appendChild(x)
+  const mb=el('div','modal-b')
+
+  const sections=[
+    {title:'Tipo de Processo',obj:PROC_TIPO,colors:['#2563EB','#EFF6FF','#BFDBFE']},
+    {title:'Tipo de Desenvolvimento',obj:DEV_CAT,colors:['#7C3AED','#F5F3FF','#DDD6FE']},
+    {title:'Módulo',obj:DEV_MOD,colors:['#059669','#ECFDF5','#A7F3D0']},
+  ]
+
+  sections.forEach(sec=>{
+    const sg=el('div','',{marginBottom:'20px'})
+    ap(sg,ap(el('div','flex aic jcsb mb8'),
+      ap(el('h3','',{fontSize:'13px',fontWeight:'600',color:sec.colors[0]}),sec.title),
+      ap(el('span','f11 tc3'),Object.keys(sec.obj).length+' itens')
+    ))
+
+    const list=el('div','',{background:'var(--bg)',borderRadius:'8px',padding:'8px',marginBottom:'8px'})
+    const renderList=()=>{
+      list.innerHTML=''
+      Object.entries(sec.obj).forEach(([k,v])=>{
+        const row=el('div','flex aic jcsb g8',{padding:'5px 8px',background:'#fff',borderRadius:'6px',marginBottom:'4px',border:'1px solid var(--brd)'})
+        ap(row,ap(el('span','tag',{background:v.bg,color:v.c,borderColor:v.bd}),v.l),ap(el('span','f11 tc3 flex-1'),k))
+        const del=ap(el('button','btn btn-d btn-xs'),'×')
+        del.onclick=()=>{
+          if(Object.keys(sec.obj).length<=1){alert('Mantenha ao menos 1 item.');return}
+          if(confirm('Remover "'+v.l+'"?')){delete sec.obj[k];renderList();renderSection()}
+        }
+        ap(row,del);list.appendChild(row)
+      })
+    }
+    renderList()
+
+    // Add new
+    const addRow=el('div','flex g8')
+    const ni=el('input','',{flex:'1'});ni.placeholder='Nome do novo atributo...'
+    const addBtn=ap(el('button','btn btn-g btn-sm'),'+ Adicionar')
+    addBtn.onclick=()=>{
+      const name=ni.value.trim();if(!name)return
+      const key=name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'_')
+      sec.obj[key]={l:name,c:sec.colors[0],bg:sec.colors[1],bd:sec.colors[2]}
+      ni.value='';renderList();renderSection()
+    }
+    ni.onkeydown=e=>{if(e.key==='Enter')addBtn.click()}
+    ap(addRow,ni,addBtn);ap(sg,list,addRow);mb.appendChild(sg)
+
+    if(sec!==sections[sections.length-1]){const div=el('div','',{height:'1px',background:'var(--brd)',marginBottom:'20px'});mb.appendChild(div)}
+  })
+
+  const mf=el('div','modal-f')
+  const ok=ap(el('button','btn btn-p'),'✓ Fechar');ok.onclick=()=>ov.remove()
+  ap(mf,ok);ap(mo,mh,mb,mf);ov.appendChild(mo);document.body.appendChild(ov)
+}
 function exportUpdateTemplate(){
   if(!window.XLSX){alert('Aguarde o carregamento da biblioteca Excel.');return}
   const XLSX=window.XLSX
@@ -1436,6 +1541,7 @@ function renderSection(){
   else if(sec==='updates')mc.appendChild(buildUpdates())
   else if(sec==='prospects')mc.appendChild(buildProspects())
   else if(sec==='users')mc.appendChild(buildUsers())
+  else if(sec==='portal')mc.appendChild(buildPortalPanel())
 }
 function renderApp(){
   const root=$('#app');root.innerHTML=''
@@ -1480,8 +1586,183 @@ function renderLogin(){
   ap(root,ap(el('div','login-bg'),lc,ap(el('p','',{textAlign:'center',fontSize:'12px',color:'rgba(255,255,255,.4)',marginTop:'14px'}),'Sem acesso? Solicite ao administrador.')))
 }
 
+// ── PORTAL DO CLIENTE ─────────────────────────────────────────
+function checkPortalMode(){
+  return new URLSearchParams(window.location.search).has('portal')
+}
+
+function renderPortal(){
+  const root=document.getElementById('app');root.innerHTML=''
+  let email='',phone='',consent=false,clientId=null
+
+  // Verificar se já tem sessão salva
+  try{const saved=JSON.parse(sessionStorage.getItem('portal_client')||'null');if(saved?.id){clientId=saved.id;showPortalUpdates(saved);return}}catch{}
+
+  const bg=el('div','login-bg',{flexDirection:'column',gap:'16px'})
+
+  // Card de registro
+  const card=el('div','login-card',{maxWidth:'420px'})
+  ap(card,
+    ap(el('div','',{textAlign:'center',marginBottom:'24px'}),
+      ap(el('div','',{width:'50px',height:'50px',borderRadius:'12px',background:'var(--blue)',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 12px',color:'#fff',fontSize:'22px',fontWeight:'700'}),'D'),
+      ap(el('h1','',{fontSize:'20px',fontWeight:'700',marginBottom:'4px'}),'Portal do Cliente'),
+      ap(el('p','tc2',{fontSize:'12px'}),'JSR Sistemas — Atualizações do sistema')
+    )
+  )
+
+  const form=el('div','',{display:'flex',flexDirection:'column',gap:'10px'})
+
+  // Campos
+  const ei=el('input','');ei.type='email';ei.placeholder='Seu e-mail *';ei.oninput=e=>email=e.target.value
+  const pi=el('input','');pi.placeholder='WhatsApp (opcional)';pi.oninput=e=>phone=e.target.value
+
+  // Consent LGPD
+  const consentDiv=el('div','',{background:'#F8FAFC',border:'1px solid var(--brd)',borderRadius:'8px',padding:'10px 12px'})
+  const consentRow=el('div','flex g8',{alignItems:'flex-start'})
+  const cb=el('input','');cb.type='checkbox';cb.style.cssText='width:auto;margin-top:2px;flex-shrink:0'
+  cb.onchange=e=>consent=e.target.checked
+  const consentTxt=ap(el('label','',{fontSize:'11px',color:'var(--t2)',lineHeight:'1.6',cursor:'pointer'}),
+    'Concordo com o uso dos meus dados (e-mail e telefone) pela JSR Sistemas exclusivamente para acesso a este portal de atualizações, conforme a ',
+    ap(el('strong',''),'Lei Geral de Proteção de Dados (LGPD)'),
+    '. Os dados não serão compartilhados com terceiros. ',
+    ap(el('span','',{color:'var(--blue)',cursor:'pointer',textDecoration:'underline',onclick:()=>alert('Para solicitar exclusão dos seus dados, entre em contato: contato@jsrsistemas.com.br')}), 'Solicitar exclusão dos dados.')
+  )
+  ap(consentRow,cb,consentTxt);consentDiv.appendChild(consentRow)
+
+  const errEl=ap(el('p','',{fontSize:'12px',color:'var(--red)',display:'none'}),'')
+  const btn=ap(el('button','btn btn-p btn-w',{padding:'11px',fontSize:'14px'}),'Acessar atualizações')
+
+  btn.onclick=async()=>{
+    if(!email.trim()||!email.includes('@')){errEl.textContent='Digite um e-mail válido.';errEl.style.display='block';return}
+    if(!consent){errEl.textContent='Aceite os termos de uso dos dados para continuar.';errEl.style.display='block';return}
+    btn.disabled=true;btn.textContent='Acessando...'
+    try{
+      // Busca ou cria registro do cliente
+      const emailHash=btoa(email.toLowerCase().trim()).replace(/=/g,'')
+      const clientRef=doc(db,'clientPortal',emailHash)
+      const existing=await getDoc(clientRef)
+      const now=new Date().toISOString()
+      if(existing.exists()){
+        await updateDoc(clientRef,{lastAccess:now,accessCount:(existing.data().accessCount||0)+1,phone:phone||existing.data().phone||''})
+      } else {
+        await setDoc(clientRef,{email:email.toLowerCase().trim(),phone:phone||'',consentDate:now,lastAccess:now,accessCount:1,createdAt:serverTimestamp()})
+      }
+      // Log de acesso
+      await addDoc(collection(db,'clientAccessLogs'),{clientId:emailHash,email:email.toLowerCase().trim(),accessAt:serverTimestamp(),userAgent:navigator.userAgent.substring(0,120)})
+      const clientData={id:emailHash,email:email.toLowerCase().trim(),phone}
+      sessionStorage.setItem('portal_client',JSON.stringify(clientData))
+      showPortalUpdates(clientData)
+    }catch(e){
+      errEl.textContent='Erro: '+e.message;errEl.style.display='block'
+      btn.disabled=false;btn.textContent='Acessar atualizações'
+    }
+  }
+
+  ap(form,ei,pi,consentDiv,errEl,btn);card.appendChild(form)
+  ap(bg,card,ap(el('p','',{textAlign:'center',fontSize:'11px',color:'rgba(255,255,255,.4)'}),'Seus dados são protegidos conforme a LGPD • JSR Sistemas'))
+  root.appendChild(bg)
+}
+
+async function showPortalUpdates(client){
+  const root=document.getElementById('app');root.innerHTML=''
+  const w=el('div','',{minHeight:'100vh',background:'var(--bg)'})
+
+  // Header
+  const hdr=el('div','',{background:'#fff',borderBottom:'1px solid var(--brd)',padding:'0 24px',height:'56px',display:'flex',alignItems:'center',justifyContent:'space-between'})
+  ap(hdr,ap(el('div','flex aic g10'),ap(el('div','',{width:'32px',height:'32px',borderRadius:'8px',background:'var(--blue)',display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontWeight:'700'}),'D'),ap(el('div',''),ap(el('div','',{fontWeight:'700',fontSize:'14px'}),'DemandFlow'),ap(el('div','',{fontSize:'11px',color:'var(--t2)'}),'Portal do Cliente — JSR Sistemas'))))
+  const sair=ap(el('button','btn btn-s btn-sm'),'Sair');sair.onclick=()=>{sessionStorage.removeItem('portal_client');renderPortal()}
+  hdr.appendChild(sair);w.appendChild(hdr)
+
+  // Buscar atualizações
+  const page=el('div','page',{maxWidth:'860px',margin:'0 auto'})
+  ap(page,ap(el('p','f12 tc2 mb16'),`Bem-vindo(a)! Acompanhe as atualizações do sistema.`))
+
+  try{
+    const snap=await getDocs(query(collection(db,'updates'),orderBy('createdAt','desc')))
+    const updList=snap.docs.map(d=>({id:d.id,...d.data()}))
+
+    if(!updList.length){ap(page,ap(el('div','empty'),ap(el('div','empty-ic'),'📋'),ap(el('div','empty-t'),'Nenhuma atualização disponível')))}
+    else{
+      updList.forEach(u=>{
+        const uc=el('div','update-c mb16')
+        const uh=el('div','update-h')
+        const ul=el('div','',{flex:'1'})
+        const utags=el('div','',{display:'flex',gap:'4px',flexWrap:'wrap',marginBottom:'8px'})
+        if(u.procTipo&&PROC_TIPO[u.procTipo])utags.appendChild(tag_(PROC_TIPO[u.procTipo],PROC_TIPO[u.procTipo].l))
+        if(u.devCat&&DEV_CAT[u.devCat])utags.appendChild(tag_(DEV_CAT[u.devCat],DEV_CAT[u.devCat].l))
+        if(u.devMod&&DEV_MOD[u.devMod])utags.appendChild(tag_(DEV_MOD[u.devMod],DEV_MOD[u.devMod].l))
+        if(u.version)utags.appendChild(ap(el('span','tag',{background:'#F8FAFC',color:'#475569',borderColor:'#CBD5E1'}),'v'+u.version))
+        if(utags.children.length)ul.appendChild(utags)
+        ap(ul,ap(el('h3','',{fontSize:'15px',fontWeight:'700',marginBottom:'4px'}),u.title||''))
+        if(u.screenName)ap(ul,ap(el('p','f12 tc2',{marginBottom:'3px'}),'🖥 Tela: '+u.screenName))
+        if(u.description)ap(ul,ap(el('p','f12 tc2',{lineHeight:'1.7',marginTop:'4px'}),u.description))
+        const ts=u.createdAt?.toDate?.()||new Date()
+        const ur=el('div','',{textAlign:'right',flexShrink:'0',marginLeft:'12px'})
+        ap(ur,ap(el('div','f11 tc3'),ts.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'})))
+        ap(uh,ul,ur);uc.appendChild(uh)
+        if(u.url){const media=buildMedia(u.type,u.url,'');if(media)uc.appendChild(media)}
+        if(u.imageUrl){const imgW=el('div','',{padding:'0 20px 12px'});const img=el('img','',{maxWidth:'100%',borderRadius:'8px',border:'1px solid var(--brd)'});img.src=u.imageUrl;imgW.appendChild(img);uc.appendChild(imgW)}
+        page.appendChild(uc)
+      })
+    }
+  }catch(e){ap(page,ap(el('p','',{color:'var(--red)'}),'Erro ao carregar: '+e.message))}
+
+  w.appendChild(page);root.appendChild(w)
+}
+
+// ── PAINEL PORTAL (admin) ────────────────────────────────────
+function buildPortalPanel(){
+  const w=el('div','page')
+  ap(w,ap(el('h2','mb16',{fontSize:'16px',fontWeight:'700'}),'Portal do Cliente'))
+
+  // Link do portal
+  const portalUrl=window.location.origin+window.location.pathname+'?portal'
+  const linkCard=el('div','card mb16')
+  ap(linkCard.appendChild(el('div','card-h')),ap(el('div','card-t'),'🔗 Link para compartilhar com clientes'))
+  const lb=el('div','card-b')
+  ap(lb,ap(el('p','f12 tc2 mb8'),'Envie este link para seus clientes acessarem as atualizações do sistema:'))
+  const linkRow=el('div','flex g8 mb8')
+  const linkBox=ap(el('input','',{background:'#F8FAFC',fontSize:'12px',fontWeight:'500'}))
+  linkBox.value=portalUrl;linkBox.readOnly=true
+  const copyBtn=ap(el('button','btn btn-p btn-sm'),'📋 Copiar link')
+  copyBtn.onclick=()=>{navigator.clipboard.writeText(portalUrl);copyBtn.textContent='✓ Copiado!';setTimeout(()=>copyBtn.textContent='📋 Copiar link',2000)}
+  ap(linkRow,linkBox,copyBtn);lb.appendChild(linkRow)
+  ap(lb,ap(el('p','f11 tc3'),'Os clientes precisam informar e-mail e aceitar os termos LGPD para acessar.'))
+  linkCard.appendChild(lb)
+  w.appendChild(linkCard)
+
+  // Lista de clientes
+  const clientCard=el('div','card')
+  ap(clientCard.appendChild(el('div','card-h')),ap(el('div','card-t'),'👥 Clientes cadastrados'))
+  const cb2=el('div','card-b')
+  ap(cb2,ap(el('p','f12 tc2'),'Carregando...'))
+
+  getDocs(query(collection(db,'clientPortal'),orderBy('lastAccess','desc'))).then(snap=>{
+    cb2.innerHTML=''
+    if(snap.empty){ap(cb2,ap(el('div','empty',{padding:'20px 0'}),ap(el('div','empty-t'),'Nenhum cliente acessou ainda.')));return}
+    snap.docs.forEach(d=>{
+      const c={id:d.id,...d.data()}
+      const row=el('div','',{padding:'12px 0',borderBottom:'1px solid var(--brd)',display:'flex',alignItems:'center',gap:'12px'})
+      const av2=ap(el('div','av',{width:'36px',height:'36px',background:'var(--bluel)',color:'var(--blue)',fontSize:'13px',fontWeight:'700'}),c.email?.charAt(0).toUpperCase()||'?')
+      const info=el('div','',{flex:'1'})
+      ap(info,ap(el('div','fw6 f13'),c.email||''),ap(el('div','f11 tc2'),c.phone?'📱 '+c.phone:'Sem telefone'))
+      const meta=el('div','',{textAlign:'right'})
+      const lastAcc=c.lastAccess?new Date(c.lastAccess).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'}):'—'
+      ap(meta,ap(el('div','f11 tc2'),`${c.accessCount||1} acesso${(c.accessCount||1)!==1?'s':''}`),ap(el('div','f11 tc3'),'Último: '+lastAcc))
+      const delBtn=ap(el('button','btn btn-d btn-xs'),'Excluir dados')
+      delBtn.onclick=async()=>{if(confirm('Excluir dados de '+c.email+'? Esta ação atende à solicitação LGPD e não pode ser desfeita.')){await deleteDoc(doc(db,'clientPortal',c.id));row.remove()}}
+      ap(row,av2,info,meta,delBtn);cb2.appendChild(row)
+    })
+  }).catch(e=>ap(cb2,ap(el('p','',{color:'var(--red)'}),'Erro: '+e.message)))
+
+  clientCard.appendChild(cb2);w.appendChild(clientCard)
+  return w
+}
+
 // ── AUTH ─────────────────────────────────────────────────────
 onAuthStateChanged(auth,async fu=>{
+  // Portal mode: cliente externo
+  if(checkPortalMode()){renderPortal();return}
   if(fu){const s=await getDoc(doc(db,'users',fu.uid));if(s.exists()){CU=fu;CP=s.data();subscribe();renderApp()}else renderLogin()}
   else{unsubs.forEach(u=>u());CU=CP=null;demands=notices=prospects=updates=[];renderLogin()}
 })

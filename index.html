@@ -449,7 +449,7 @@ function buildSidebar(){
   const isA=CP?.role==='admin'
   const sb=el('div','sb')
   const logo=el('div','sb-logo')
-  ap(logo,ap(el('div','sb-logo-icon'),'D'),ap(el('div',''),ap(el('div','sb-logo-text'),'DemandFlow'),ap(el('div','sb-logo-sub'),'Central da Equipe · v5.4 ✦')))
+  ap(logo,ap(el('div','sb-logo-icon'),'D'),ap(el('div',''),ap(el('div','sb-logo-text'),'DemandFlow'),ap(el('div','sb-logo-sub'),'Central da Equipe · v5.5 ✦')))
   sb.appendChild(logo)
   const nav=el('div','sb-nav')
   ap(nav,ap(el('div','sb-sec'),'Menu'))
@@ -720,7 +720,19 @@ function buildUpdates(){
   let dragSrc=null
 
   // Tabela com scroll vertical
+  // Controles de scroll horizontal
+  const scrollCtrl=el('div','flex aic jcsb mb8')
+  const scrollHint=ap(el('span','f11 tc3'),'← Deslize a tabela para ver todas as colunas →')
+  const scrollBtns=el('div','flex g6')
+  const scrollLeft=ap(el('button','btn btn-s btn-sm'),'← Esquerda')
+  const scrollRight=ap(el('button','btn btn-sm btn-p'),'Direita →')
+  ap(scrollBtns,scrollLeft,scrollRight)
+  ap(scrollCtrl,scrollHint,scrollBtns)
+  w.appendChild(scrollCtrl)
+
   const tblWrap=el('div','updates-wrap')
+  scrollLeft.onclick=()=>tblWrap.scrollBy({left:-300,behavior:'smooth'})
+  scrollRight.onclick=()=>tblWrap.scrollBy({left:300,behavior:'smooth'})
   const tbl=el('table','',{width:'100%',borderCollapse:'collapse',fontSize:'13px',minWidth:'1200px'})
   const thead=el('thead','',{position:'sticky',top:'0',zIndex:'5'})
 

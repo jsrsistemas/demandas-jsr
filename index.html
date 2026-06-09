@@ -449,7 +449,7 @@ function buildSidebar(){
   const isA=CP?.role==='admin'
   const sb=el('div','sb')
   const logo=el('div','sb-logo')
-  ap(logo,ap(el('div','sb-logo-icon'),'D'),ap(el('div',''),ap(el('div','sb-logo-text'),'DemandFlow'),ap(el('div','sb-logo-sub'),'Central da Equipe · v6.1 ✦')))
+  ap(logo,ap(el('div','sb-logo-icon'),'D'),ap(el('div',''),ap(el('div','sb-logo-text'),'DemandFlow'),ap(el('div','sb-logo-sub'),'Central da Equipe · v6.2 ✦')))
   sb.appendChild(logo)
   const nav=el('div','sb-nav')
   ap(nav,ap(el('div','sb-sec'),'Menu'))
@@ -798,38 +798,29 @@ function buildUpdates(){
 
   const tblWrap=el('div','updates-wrap')
 
-  // Barra de scroll customizada JS (sempre visível em qualquer OS/browser)
-  const customScroll=el('div','custom-hscroll')
-  const scrollThumb=el('div','custom-hscroll-thumb')
-  customScroll.appendChild(scrollThumb)
+  // ── Scrollbar horizontal nativa garantida (input range) ─────────────────────
+  const rangeWrap=el('div','',{padding:'4px 0 6px',background:'#F8FAFC',borderRadius:'0 0 var(--r) var(--r)',border:'1px solid var(--brd)',borderTop:'2px solid #E2E8F0',display:'flex',alignItems:'center',gap:'8px',paddingLeft:'10px',paddingRight:'10px'})
+  ap(rangeWrap,ap(el('span','',{fontSize:'11px',color:'#94A3B8',flexShrink:'0'}),'◀'))
+  const rangeInput=el('input','')
+  rangeInput.type='range';rangeInput.min='0';rangeInput.max='1000';rangeInput.value='0'
+  Object.assign(rangeInput.style,{flex:'1',margin:'0',height:'20px',cursor:'pointer',accentColor:'#2563EB'})
+  ap(rangeWrap,rangeInput,ap(el('span','',{fontSize:'11px',color:'#94A3B8',flexShrink:'0'}),'▶'))
 
-  function updateThumb(){
-    if(!customScroll.isConnected||!customScroll.clientWidth){setTimeout(updateThumb,80);return}
-    const ratio=tblWrap.clientWidth/tblWrap.scrollWidth
-    if(ratio>=1){scrollThumb.style.width='100%';return}
-    const thumbW=Math.max(40,ratio*customScroll.clientWidth)
-    const maxLeft=customScroll.clientWidth-thumbW
-    const pct=tblWrap.scrollLeft/(tblWrap.scrollWidth-tblWrap.clientWidth)||0
-    scrollThumb.style.width=thumbW+'px'
-    scrollThumb.style.left=(pct*maxLeft)+'px'
+  let syncingRange=false
+  rangeInput.oninput=()=>{
+    if(syncingRange)return
+    const pct=rangeInput.value/1000
+    tblWrap.scrollLeft=pct*(tblWrap.scrollWidth-tblWrap.clientWidth)
   }
-  tblWrap.addEventListener('scroll',updateThumb)
-  window.addEventListener('resize',updateThumb)
-  setTimeout(updateThumb,100)
+  tblWrap.addEventListener('scroll',()=>{
+    if(tblWrap.scrollWidth<=tblWrap.clientWidth)return
+    syncingRange=true
+    rangeInput.value=Math.round(tblWrap.scrollLeft/(tblWrap.scrollWidth-tblWrap.clientWidth)*1000)
+    syncingRange=false
+  })
 
-  // Arrastar o thumb
-  let drag=false,dragStartX=0,dragStartScrollLeft=0
-  scrollThumb.addEventListener('mousedown',e=>{drag=true;dragStartX=e.clientX;dragStartScrollLeft=tblWrap.scrollLeft;scrollThumb.classList.add('dragging');e.preventDefault()})
-  scrollThumb.addEventListener('touchstart',e=>{drag=true;dragStartX=e.touches[0].clientX;dragStartScrollLeft=tblWrap.scrollLeft},{ passive:true })
-  document.addEventListener('mousemove',e=>{if(!drag)return;const dx=e.clientX-dragStartX;const ratio=tblWrap.scrollWidth/customScroll.clientWidth;tblWrap.scrollLeft=dragStartScrollLeft+dx*ratio})
-  document.addEventListener('touchmove',e=>{if(!drag)return;const dx=e.touches[0].clientX-dragStartX;const ratio=tblWrap.scrollWidth/customScroll.clientWidth;tblWrap.scrollLeft=dragStartScrollLeft+dx*ratio},{passive:true})
-  document.addEventListener('mouseup',()=>{drag=false;scrollThumb.classList.remove('dragging')})
-  document.addEventListener('touchend',()=>{drag=false})
-
-  // Clicar na track para pular
-  customScroll.addEventListener('click',e=>{if(e.target===scrollThumb)return;const rect=customScroll.getBoundingClientRect();const pct=(e.clientX-rect.left)/customScroll.clientWidth;tblWrap.scrollLeft=pct*(tblWrap.scrollWidth-tblWrap.clientWidth)})
-
-  const fakeScrollOuter=customScroll
+  function updateThumb(){} // compatibilidade
+  const fakeScrollOuter=rangeWrap
   const tbl=el('table','',{width:'100%',borderCollapse:'collapse',fontSize:'13px',minWidth:'1200px'})
   const thead=el('thead','',{position:'sticky',top:'0',zIndex:'5'})
 
@@ -1293,52 +1284,54 @@ function openUpdateModal(ex=null){
 
   // Título
   const tg=ap(el('div','form-g'),ap(el('label','form-l'),'Título *'))
-  const ti=el('input','');ti.placeholder='Ex: Manutenção de custo via planilha Excel';ti.oninput=e=>f.title=e.target.value;tg.appendChild(ti)
+  const ti=el('input','');ti.placeholder='Ex: Manutenção de custo via planilha Excel';ti.value=f.title||'';ti.oninput=e=>f.title=e.target.value;tg.appendChild(ti)
 
   // Tipo de processo + Nome da tela
   const r1=el('div','form-row')
   const ptg=ap(el('div','form-g',{marginBottom:'0'}),ap(el('label','form-l'),'Tipo de processo'))
   const pts=el('select','')
   pts.innerHTML='<option value="">— Selecione —</option>'+Object.entries(PROC_TIPO).map(([k,v])=>`<option value="${k}">${v.l}</option>`).join('')
-  pts.onchange=e=>f.procTipo=e.target.value;ptg.appendChild(pts)
+  pts.value=f.procTipo||'';pts.onchange=e=>f.procTipo=e.target.value;ptg.appendChild(pts)
   const sng=ap(el('div','form-g',{marginBottom:'0'}),ap(el('label','form-l'),'Nome da tela'))
-  const sni=el('input','');sni.placeholder='Ex: Pedido de compra';sni.oninput=e=>f.screenName=e.target.value;sng.appendChild(sni)
+  const sni=el('input','');sni.placeholder='Ex: Pedido de compra';sni.value=f.screenName||'';sni.oninput=e=>f.screenName=e.target.value;sng.appendChild(sni)
   ap(r1,ptg,sng)
 
   // Versão + Tipo desenvolvimento
   const r2=el('div','form-row')
   const verg=ap(el('div','form-g',{marginBottom:'0'}),ap(el('label','form-l'),'Versão'))
-  const veri=el('input','');veri.placeholder='Ex: 2.4.1';veri.oninput=e=>f.version=e.target.value;verg.appendChild(veri)
+  const veri=el('input','');veri.placeholder='Ex: 2.4.1';veri.value=f.version||'';veri.oninput=e=>f.version=e.target.value;verg.appendChild(veri)
   const catg=ap(el('div','form-g',{marginBottom:'0'}),ap(el('label','form-l'),'Tipo de desenvolvimento'))
   const cats=el('select','')
   cats.innerHTML='<option value="">— Selecione —</option>'+Object.entries(DEV_CAT).map(([k,v])=>`<option value="${k}">${v.l}</option>`).join('')
-  cats.onchange=e=>f.devCat=e.target.value;catg.appendChild(cats)
+  cats.value=f.devCat||'';cats.onchange=e=>f.devCat=e.target.value;catg.appendChild(cats)
   ap(r2,verg,catg)
 
   // Módulo
   const modg=ap(el('div','form-g'),ap(el('label','form-l'),'Módulo'))
   const mods=el('select','')
   mods.innerHTML='<option value="">— Selecione —</option>'+Object.entries(DEV_MOD).map(([k,v])=>`<option value="${k}">${v.l}</option>`).join('')
-  mods.onchange=e=>f.devMod=e.target.value;modg.appendChild(mods)
+  mods.value=f.devMod||'';mods.onchange=e=>f.devMod=e.target.value;modg.appendChild(mods)
 
   // Descrição
   const dg=ap(el('div','form-g'),ap(el('label','form-l'),'Descrição'))
-  const di=el('textarea','',{resize:'vertical'});di.rows=2;di.placeholder='Detalhe a atualização...';di.oninput=e=>f.description=e.target.value;dg.appendChild(di)
+  const di=el('textarea','',{resize:'vertical'});di.rows=2;di.placeholder='Detalhe a atualização...';di.value=f.description||'';di.oninput=e=>f.description=e.target.value;dg.appendChild(di)
 
   // Material (vídeo/PDF)
   const matg=ap(el('div','form-g'),ap(el('label','form-l'),'Material (anexo)'))
   const matSel=el('select','')
   matSel.innerHTML='<option value="none">Não</option><option value="pdf">Sim, PDF</option><option value="upload">Sim, Vídeo</option>'
-  matg.appendChild(matSel)
+  const matType=ex?.type==='storage_video'?'upload':(ex?.type||'none')
+  matSel.value=matType;matg.appendChild(matSel)
 
-  const pdfg=ap(el('div','form-g',{display:'none'}),ap(el('label','form-l'),'Link do PDF (Google Drive)'))
-  const pdfi=el('input','');pdfi.placeholder='https://drive.google.com/...';pdfi.oninput=e=>f.url=e.target.value;pdfg.appendChild(pdfi)
+  const pdfg=ap(el('div','form-g',{display:matType==='pdf'?'':'none'}),ap(el('label','form-l'),'Link do PDF (Google Drive)'))
+  const pdfi=el('input','');pdfi.placeholder='https://drive.google.com/...';pdfi.value=f.url||'';pdfi.oninput=e=>f.url=e.target.value;pdfg.appendChild(pdfi)
 
-  const uploadg=el('div','form-g',{display:'none'})
+  const uploadg=el('div','form-g',{display:matType==='upload'?'':'none'})
   ap(uploadg,ap(el('label','form-l'),'Selecionar vídeo'))
   const vidInput=el('input','');vidInput.type='file';vidInput.accept='video/*'
   vidInput.style.cssText='padding:8px;background:#F1F5F9;border:2px dashed #CBD5E1;border-radius:8px;cursor:pointer;width:100%'
-  const vidName=ap(el('p','f12 tc3',{marginTop:'5px'}),'Nenhum vídeo selecionado')
+  const vidName=ap(el('p','f12 tc3',{marginTop:'5px'}),ex?.url?'✓ Vídeo já anexado (envie novo para substituir)':'Nenhum vídeo selecionado')
+  if(ex?.url)vidName.style.color='var(--green)'
   const progWrap=el('div','',{display:'none',marginTop:'6px'})
   const progBar=el('div','',{height:'5px',background:'#E2E8F0',borderRadius:'3px',overflow:'hidden',marginBottom:'3px'})
   const progFill=el('div','',{height:'5px',background:'var(--blue)',borderRadius:'3px',width:'0%',transition:'width .3s'})

@@ -136,7 +136,12 @@ input:focus,select:focus,textarea:focus{border-color:var(--blue);box-shadow:0 0 
 .notice-h{padding:14px 16px 10px;display:flex;align-items:flex-start;gap:10px}
 .notice-b{padding:0 16px 14px}
 
-.updates-wrap{overflow-y:auto;max-height:calc(100vh - 220px);border-radius:var(--r);border:1px solid var(--brd);background:var(--card);box-shadow:var(--sh)}
+.updates-wrap{overflow-y:auto;overflow-x:auto;max-height:calc(100vh - 200px);border-radius:var(--r);border:1px solid var(--brd);background:var(--card);box-shadow:var(--sh)}
+.updates-wrap::-webkit-scrollbar{width:8px;height:8px}
+.updates-wrap::-webkit-scrollbar-track{background:#F1F5F9;border-radius:4px}
+.updates-wrap::-webkit-scrollbar-thumb{background:#CBD5E1;border-radius:4px}
+.updates-wrap::-webkit-scrollbar-thumb:hover{background:#94A3B8}
+.updates-wrap::-webkit-scrollbar-corner{background:#F1F5F9}
 .sort-th{cursor:pointer;user-select:none;transition:background .15s}
 .sort-th:hover{background:#EFF6FF!important}
 .sort-arrow{margin-left:4px;color:var(--t3);font-size:10px}
@@ -314,6 +319,61 @@ const NP={info:{l:'Informativo',c:'#2563EB',bg:'#EFF6FF',bd:'#BFDBFE',top:'#2563
 const DEV_CAT={nova_tela:{l:'Nova tela',c:'#7C3AED',bg:'#F5F3FF',bd:'#DDD6FE'},correcoes:{l:'Correções',c:'#DC2626',bg:'#FEF2F2',bd:'#FECACA'},implementacoes:{l:'Implementações',c:'#2563EB',bg:'#EFF6FF',bd:'#BFDBFE'},melhorias:{l:'Melhorias',c:'#059669',bg:'#ECFDF5',bd:'#A7F3D0'}}
 const DEV_MOD={retaguarda:{l:'Retaguarda',c:'#0F172A',bg:'#F1F5F9',bd:'#CBD5E1'},financeiro:{l:'Financeiro',c:'#059669',bg:'#ECFDF5',bd:'#A7F3D0'},fiscal:{l:'Fiscal',c:'#D97706',bg:'#FFFBEB',bd:'#FDE68A'},custo:{l:'Módulo de custo',c:'#BE185D',bg:'#FDF2F8',bd:'#F9A8D4'},erp:{l:'ERP',c:'#2563EB',bg:'#EFF6FF',bd:'#BFDBFE'},app_web:{l:'APP Web',c:'#7C3AED',bg:'#F5F3FF',bd:'#DDD6FE'},terminal:{l:'Terminal de etiqueta',c:'#EA580C',bg:'#FFF7ED',bd:'#FDBA74'}}
 const PROC_TIPO={comercial:{l:'Comercial',c:'#2563EB',bg:'#EFF6FF',bd:'#BFDBFE'},financeiro:{l:'Financeiro',c:'#059669',bg:'#ECFDF5',bd:'#A7F3D0'},fiscal:{l:'Fiscal',c:'#D97706',bg:'#FFFBEB',bd:'#FDE68A'},estoque:{l:'Estoque',c:'#EA580C',bg:'#FFF7ED',bd:'#FDBA74'},producao:{l:'Produção',c:'#7C3AED',bg:'#F5F3FF',bd:'#DDD6FE'},operacional:{l:'Operacional',c:'#0891B2',bg:'#ECFEFF',bd:'#A5F3FC'},rh:{l:'RH',c:'#BE185D',bg:'#FDF2F8',bd:'#F9A8D4'}}
+
+// ── BLOCOS DE ATUALIZAÇÕES ───────────────────────────────────────────────────
+let updateBlocks=[] // [{id, name, color}]
+const BLOCK_COLORS=['#2563EB','#059669','#D97706','#7C3AED','#DC2626','#0891B2','#EA580C','#BE185D']
+
+async function loadBlocks(){
+  try{const s=await getDoc(doc(db,'config','update_blocks'));if(s.exists())updateBlocks=s.data().blocks||[]}catch{}
+}
+async function saveBlocks(){
+  await setDoc(doc(db,'config','update_blocks'),{blocks:updateBlocks,updatedAt:serverTimestamp()})
+}
+function openBlockManager(){
+  const ov=el('div','overlay');const mo=el('div','modal',{maxWidth:'480px'})
+  const mh=ap(el('div','modal-h'),ap(el('div','modal-t'),'📦 Gerenciar Blocos'))
+  const x=ap(el('button','modal-x'),'×');x.onclick=()=>ov.remove();mh.appendChild(x)
+  const mb=el('div','modal-b')
+
+  function renderList(){
+    mb.innerHTML=''
+    if(!updateBlocks.length)ap(mb,ap(el('p','f12 tc3 mb12'),'Nenhum bloco criado ainda.'))
+    updateBlocks.forEach((b,i)=>{
+      const row=el('div','flex aic g8',{padding:'8px 0',borderBottom:'1px solid var(--brd)'})
+      const dot=el('div','',{width:'12px',height:'12px',borderRadius:'50%',background:b.color||'var(--blue)',flexShrink:'0'})
+      ap(row,dot,ap(el('span','f13 fw5',{flex:'1'}),b.name))
+      const cnt=updates.filter(u=>u.blockId===b.id).length
+      ap(row,ap(el('span','f11 tc3'),cnt+' item'+(cnt!==1?'s':'')))
+      const del=ap(el('button','btn btn-d btn-xs'),'Remover')
+      del.onclick=async()=>{updateBlocks.splice(i,1);await saveBlocks();renderList()}
+      row.appendChild(del);mb.appendChild(row)
+    })
+    // Adicionar novo
+    const addRow=el('div','flex g8 mt12',{marginTop:'16px'})
+    const ni=el('input','',{flex:'1'});ni.placeholder='Nome do bloco (ex: 1º Semestre 2025)'
+    let chosenColor=BLOCK_COLORS[updateBlocks.length%BLOCK_COLORS.length]
+    const colorPick=el('div','flex g4')
+    BLOCK_COLORS.forEach(c=>{
+      const dot=el('div','',{width:'20px',height:'20px',borderRadius:'50%',background:c,cursor:'pointer',border:c===chosenColor?'3px solid #1E293B':'2px solid transparent',flexShrink:'0'})
+      dot.onclick=()=>{chosenColor=c;colorPick.querySelectorAll('div').forEach(d=>d.style.border=d.style.background===c?'3px solid #1E293B':'2px solid transparent')}
+      colorPick.appendChild(dot)
+    })
+    const addBtn=ap(el('button','btn btn-p btn-sm'),'+ Adicionar')
+    addBtn.onclick=async()=>{
+      if(!ni.value.trim())return
+      const newBlock={id:'blk_'+Date.now(),name:ni.value.trim(),color:chosenColor}
+      updateBlocks.push(newBlock);await saveBlocks();ni.value='';renderList()
+    }
+    ni.onkeydown=e=>{if(e.key==='Enter')addBtn.click()}
+    ap(addRow,ni,addBtn);mb.appendChild(colorPick);mb.appendChild(addRow)
+  }
+  renderList()
+  const mf=el('div','modal-f')
+  const cl=ap(el('button','btn btn-s'),'Fechar');cl.onclick=()=>ov.remove()
+  mf.appendChild(cl);ap(mo,mh,mb,mf);ov.appendChild(mo);document.body.appendChild(ov)
+}
+
 const AVC=n=>{const i=(n?.charCodeAt(0)||0)%5;return[['#2563EB','#DBEAFE'],['#059669','#D1FAE5'],['#7C3AED','#EDE9FE'],['#D97706','#FEF3C7'],['#DC2626','#FEE2E2']][i]}
 
 // ── UTILS ────────────────────────────────────────────────────
@@ -384,7 +444,7 @@ function buildSidebar(){
   const isA=CP?.role==='admin'
   const sb=el('div','sb')
   const logo=el('div','sb-logo')
-  ap(logo,ap(el('div','sb-logo-icon'),'D'),ap(el('div',''),ap(el('div','sb-logo-text'),'DemandFlow'),ap(el('div','sb-logo-sub'),'Central da Equipe · v5.1 ✦')))
+  ap(logo,ap(el('div','sb-logo-icon'),'D'),ap(el('div',''),ap(el('div','sb-logo-text'),'DemandFlow'),ap(el('div','sb-logo-sub'),'Central da Equipe · v5.2 ✦')))
   sb.appendChild(logo)
   const nav=el('div','sb-nav')
   ap(nav,ap(el('div','sb-sec'),'Menu'))
@@ -632,19 +692,21 @@ function buildUpdates(){
   const h=el('div','flex aic jcsb mb12')
   ap(h,ap(el('h2','',{fontSize:'16px',fontWeight:'700'}),'Atualizações do Sistema'))
   if(isA){
-    const btns=el('div','flex g8')
+    const btns=el('div','flex g8',{flexWrap:'wrap'})
     const addBtn=ap(el('button','btn btn-p btn-sm'),'+ Adicionar linha')
     addBtn.onclick=()=>addInlineRow()
+    const blockBtn=ap(el('button','btn btn-s btn-sm'),'📦 Blocos')
+    blockBtn.onclick=()=>openBlockManager()
     const printBtn=ap(el('button','btn btn-s btn-sm'),'🖨️ Imprimir')
     printBtn.onclick=()=>printUpdates()
-    const attrBtn=ap(el('button','btn btn-s btn-sm'),'⚙️ Atributos')
-    attrBtn.onclick=()=>openAttributesPanel()
+    const linkBtn=ap(el('button','btn btn-s btn-sm'),'🔗 Link portal')
+    linkBtn.onclick=()=>{const url=window.location.origin+window.location.pathname+'?portal';navigator.clipboard.writeText(url).then(()=>alert('✓ Link copiado!\n\n'+url)).catch(()=>prompt('Copie o link do portal:',url))}
     const expBtn=ap(el('button','btn btn-s btn-sm'),'📥 Exportar');expBtn.onclick=exportUpdateTemplate
     const impLabel=el('label','btn btn-s btn-sm',{cursor:'pointer'});impLabel.textContent='📤 Importar'
     const impInput=el('input','');impInput.type='file';impInput.accept='.xlsx,.xls';impInput.style.display='none'
     impInput.onchange=e=>{if(e.target.files[0])importUpdateFile(e.target.files[0]);impInput.value=''}
     impLabel.appendChild(impInput)
-    ap(btns,addBtn,printBtn,attrBtn,expBtn,impLabel);h.appendChild(btns)
+    ap(btns,addBtn,blockBtn,printBtn,linkBtn,expBtn,impLabel);h.appendChild(btns)
   }
   w.appendChild(h)
 
@@ -660,6 +722,7 @@ function buildUpdates(){
   // Colunas
   const colDefs=[
     {l:'',w:'34px',key:null,drag:true},
+    {l:'BLOCO',w:'140px',key:'blockId'},
     {l:'TÍTULO',w:'260px',key:'title'},
     {l:'PROCESSO',w:'120px',key:'procTipo'},
     {l:'TELA',w:'150px',key:'screenName'},
@@ -768,6 +831,14 @@ function buildUpdates(){
       const td=(t,extra)=>{const d=el('td','',{padding:'7px 10px',borderBottom:'1px solid var(--brd)',verticalAlign:'middle',...(extra||{})});d.textContent=t||'—';return d}
       const tagTd=(cfg)=>{const d=el('td','',{padding:'7px 10px',borderBottom:'1px solid var(--brd)',verticalAlign:'middle'});if(cfg)d.appendChild(tag_(cfg,cfg.l));else d.textContent='—';return d}
 
+      // Bloco
+      const blk=updateBlocks.find(b=>b.id===u.blockId)
+      const blkTd=el('td','',{padding:'7px 10px',borderBottom:'1px solid var(--brd)',verticalAlign:'middle'})
+      if(blk){const s=ap(el('span','tag',{background:blk.color+'22',color:blk.color,borderColor:blk.color+'55',fontWeight:'600',fontSize:'10px',whiteSpace:'nowrap'}),blk.name);blkTd.appendChild(s)}
+      else if(isA){const s=ap(el('select','',{fontSize:'10px',padding:'3px 5px',border:'1px solid var(--brd)',borderRadius:'5px',background:'transparent',cursor:'pointer'}));s.innerHTML='<option value="">Sem bloco</option>'+updateBlocks.map(b=>`<option value="${b.id}">${b.name}</option>`).join('');s.value=u.blockId||'';s.onchange=async e=>{await updateDoc(doc(db,'updates',u.id),{blockId:e.target.value})};blkTd.appendChild(s)}
+      else blkTd.textContent='—'
+      tr.appendChild(blkTd)
+
       ap(tr,
         Object.assign(el('td','',{padding:'7px 10px',borderBottom:'1px solid var(--brd)',fontWeight:'500',maxWidth:'200px'}),{textContent:u.title||''}),
         tagTd(u.procTipo&&PROC_TIPO[u.procTipo]?PROC_TIPO[u.procTipo]:null),
@@ -865,47 +936,76 @@ function buildUpdates(){
 }
 
 function printUpdates(){
-  const now=new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'})
-  const rows=updates.map((u,i)=>{
-    const st=u.procTipo&&PROC_TIPO[u.procTipo]?PROC_TIPO[u.procTipo].l:''
-    const dc=u.devCat&&DEV_CAT[u.devCat]?DEV_CAT[u.devCat].l:''
-    const dm=u.devMod&&DEV_MOD[u.devMod]?DEV_MOD[u.devMod].l:''
-    const mat=u.type==='storage_video'||u.type==='video'?'📹 Vídeo':u.type==='pdf'?'📄 PDF':u.imageUrl?'🖼 Imagem':'—'
-    const ts=u.createdAt?.toDate?.()||new Date()
-    return `<tr style="background:${i%2===0?'#fff':'#F8FAFC'}">
-      <td>${i+1}</td>
-      <td style="font-weight:600">${u.title||''}</td>
-      <td>${st}</td><td>${u.screenName||''}</td>
-      <td style="text-align:center;font-family:monospace">${u.version||''}</td>
-      <td>${dc}</td><td>${dm}</td>
-      <td style="color:#64748B">${u.description||''}</td>
-      <td style="text-align:center">${mat}</td>
-      <td>${u.createdByName||''}<br><span style="color:#64748B;font-size:10px">${ts.toLocaleDateString('pt-BR')} ${ts.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</span></td>
-    </tr>`
-  }).join('')
-  const html=`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"/>
-  <title>Atualizações — JSR Sistemas</title>
-  <style>
-    @page{size:A4 landscape;margin:1cm}
-    *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:Arial,sans-serif;font-size:10px;color:#1E293B}
-    h1{font-size:15px;font-weight:700;margin-bottom:2px}
-    .sub{font-size:10px;color:#64748B;margin-bottom:12px}
-    table{width:100%;border-collapse:collapse}
-    th{background:#1E293B;color:#fff;padding:6px 8px;text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:.4px}
-    td{padding:5px 8px;border-bottom:1px solid #E2E8F0;vertical-align:top}
-    .footer{margin-top:10px;font-size:9px;color:#94A3B8;text-align:right}
-  </style></head><body>
-  <h1>Atualizações do Sistema — JSR Sistemas</h1>
-  <div class="sub">Gerado em ${now} · ${updates.length} registro${updates.length!==1?'s':''}</div>
-  <table><thead><tr><th>#</th><th>Título</th><th>Processo</th><th>Tela</th><th>Versão</th><th>Tipo Dev</th><th>Módulo</th><th>Descrição</th><th>Material</th><th>Publicado por</th></tr></thead>
-  <tbody>${rows}</tbody></table>
-  <div class="footer">DemandFlow · JSR Sistemas · ${now}</div>
-  <script>window.onload=()=>window.print()<\/script>
-  </body></html>`
-  const pw=window.open('','_blank')
-  if(pw){pw.document.write(html);pw.document.close()}
-  else alert('Permita pop-ups para imprimir.')
+  const ov=el('div','overlay')
+  const mo=el('div','modal',{maxWidth:'500px'})
+  const mh=ap(el('div','modal-h'),ap(el('div','modal-t'),'🖨️ Selecionar colunas para imprimir'))
+  const x=ap(el('button','modal-x'),'×');x.onclick=()=>ov.remove();mh.appendChild(x)
+  const mb=el('div','modal-b')
+  ap(mb,ap(el('p','f12 tc2 mb12'),'Marque as colunas que deseja incluir na impressão:'))
+
+  const COLS=[
+    {key:'idx',l:'#',checked:true},
+    {key:'title',l:'Título',checked:true},
+    {key:'procTipo',l:'Tipo de Processo',checked:true},
+    {key:'screenName',l:'Nome da Tela',checked:true},
+    {key:'version',l:'Versão',checked:true},
+    {key:'devCat',l:'Tipo de Desenvolvimento',checked:true},
+    {key:'devMod',l:'Módulo',checked:true},
+    {key:'description',l:'Descrição',checked:true},
+    {key:'block',l:'Bloco',checked:true},
+    {key:'material',l:'Material',checked:false},
+    {key:'published',l:'Publicado por / Data',checked:true},
+  ]
+  const state={}
+  COLS.forEach(c=>state[c.key]=c.checked)
+
+  const grid=el('div','',{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'8px'})
+  COLS.forEach(c=>{
+    const row=el('div','flex aic g8',{padding:'6px 10px',border:'1px solid var(--brd)',borderRadius:'8px',cursor:'pointer'})
+    const cb=el('input','');cb.type='checkbox';cb.checked=c.checked;cb.style.cssText='width:auto;flex-shrink:0'
+    const lbl=ap(el('label','f12 fw5',{cursor:'pointer'}),c.l)
+    cb.onchange=e=>state[c.key]=e.target.checked
+    row.onclick=()=>{cb.checked=!cb.checked;state[c.key]=cb.checked}
+    ap(row,cb,lbl);grid.appendChild(row)
+  })
+  mb.appendChild(grid)
+
+  const mf=el('div','modal-f')
+  const can=ap(el('button','btn btn-s'),'Cancelar');can.onclick=()=>ov.remove()
+  const gen=ap(el('button','btn btn-p'),'Gerar impressão')
+  gen.onclick=()=>{ov.remove();doprint(state)}
+  ap(mf,can,gen);ap(mo,mh,mb,mf);ov.appendChild(mo);document.body.appendChild(ov)
+
+  function doprint(cols){
+    const now=new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'})
+    const headers=COLS.filter(c=>cols[c.key]).map(c=>`<th>${c.l}</th>`).join('')
+    const rows=updates.map((u,i)=>{
+      const tds=COLS.filter(c=>cols[c.key]).map(c=>{
+        if(c.key==='idx')return `<td style="text-align:center;color:#64748B">${i+1}</td>`
+        if(c.key==='title')return `<td style="font-weight:600">${u.title||''}</td>`
+        if(c.key==='procTipo')return `<td>${u.procTipo&&PROC_TIPO[u.procTipo]?PROC_TIPO[u.procTipo].l:''}</td>`
+        if(c.key==='screenName')return `<td>${u.screenName||''}</td>`
+        if(c.key==='version')return `<td style="text-align:center;font-family:monospace">${u.version||''}</td>`
+        if(c.key==='devCat')return `<td>${u.devCat&&DEV_CAT[u.devCat]?DEV_CAT[u.devCat].l:''}</td>`
+        if(c.key==='devMod')return `<td>${u.devMod&&DEV_MOD[u.devMod]?DEV_MOD[u.devMod].l:''}</td>`
+        if(c.key==='description')return `<td style="color:#64748B">${u.description||''}</td>`
+        if(c.key==='block'){const b=updateBlocks.find(bl=>bl.id===u.blockId);return `<td>${b?b.name:''}</td>`}
+        if(c.key==='material'){const m=u.type==='storage_video'||u.type==='video'?'Vídeo':u.type==='pdf'?'PDF':u.imageUrl?'Imagem':'—';return `<td style="text-align:center">${m}</td>`}
+        if(c.key==='published'){const ts=u.createdAt?.toDate?.()||new Date();return `<td>${u.createdByName||''}<br><span style="color:#64748B;font-size:9px">${ts.toLocaleDateString('pt-BR')}</span></td>`}
+        return '<td></td>'
+      }).join('')
+      return `<tr style="background:${i%2===0?'#fff':'#F8FAFC'}">${tds}</tr>`
+    }).join('')
+    const pw=window.open('','_blank')
+    if(!pw){alert('Permita pop-ups.');return}
+    pw.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"/><title>Atualizações JSR</title>
+    <style>@page{size:A4 landscape;margin:1cm}*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:10px;color:#1E293B}h1{font-size:14px;font-weight:700;margin-bottom:3px}.sub{font-size:9px;color:#64748B;margin-bottom:10px}table{width:100%;border-collapse:collapse}th{background:#1E293B;color:#fff;padding:6px 8px;text-align:left;font-size:9px;text-transform:uppercase}td{padding:5px 8px;border-bottom:1px solid #E2E8F0;vertical-align:top;font-size:10px}.footer{margin-top:10px;font-size:9px;color:#94A3B8;text-align:right}</style>
+    </head><body><h1>Atualizações do Sistema — JSR Sistemas</h1><div class="sub">Gerado em ${now} · ${updates.length} registro${updates.length!==1?'s':''}</div>
+    <table><thead><tr>${headers}</tr></thead><tbody>${rows}</tbody></table>
+    <div class="footer">DemandFlow · JSR Sistemas · ${now}</div>
+    <script>window.onload=()=>window.print()<\/script></body></html>`)
+    pw.document.close()
+  }
 }
 
 function openAttributesPanel(){
@@ -1763,7 +1863,7 @@ function buildPortalPanel(){
 onAuthStateChanged(auth,async fu=>{
   // Portal mode: cliente externo
   if(checkPortalMode()){renderPortal();return}
-  if(fu){const s=await getDoc(doc(db,'users',fu.uid));if(s.exists()){CU=fu;CP=s.data();subscribe();renderApp()}else renderLogin()}
+  if(fu){const s=await getDoc(doc(db,'users',fu.uid));if(s.exists()){CU=fu;CP=s.data();await loadBlocks();subscribe();renderApp()}else renderLogin()}
   else{unsubs.forEach(u=>u());CU=CP=null;demands=notices=prospects=updates=[];renderLogin()}
 })
 </script>

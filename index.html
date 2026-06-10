@@ -449,7 +449,7 @@ function buildSidebar(){
   const isA=CP?.role==='admin'
   const sb=el('div','sb')
   const logo=el('div','sb-logo')
-  ap(logo,ap(el('div','sb-logo-icon'),'D'),ap(el('div',''),ap(el('div','sb-logo-text'),'DemandFlow'),ap(el('div','sb-logo-sub'),'Central da Equipe · v6.3 ✦')))
+  ap(logo,ap(el('div','sb-logo-icon'),'D'),ap(el('div',''),ap(el('div','sb-logo-text'),'DemandFlow'),ap(el('div','sb-logo-sub'),'Central da Equipe · v6.4 ✦')))
   sb.appendChild(logo)
   const nav=el('div','sb-nav')
   ap(nav,ap(el('div','sb-sec'),'Menu'))
@@ -1985,7 +1985,13 @@ async function showPortalUpdates(client){
     const snap=await getDocs(query(collection(db,'updates'),orderBy('createdAt','desc')))
     let updList=snap.docs.map(d=>({id:d.id,...d.data()}))
     // Respeitar ordem salva
-    try{const ord=await getDoc(doc(db,'config','updates_order'));if(ord.exists()&&ord.data().order?.length){const o=ord.data().order;updList.sort((a,b)=>(o.indexOf(a.id)??999)-(o.indexOf(b.id)??999))}catch{}
+    try{
+      const ord=await getDoc(doc(db,'config','updates_order'))
+      if(ord.exists()&&ord.data().order?.length){
+        const o=ord.data().order
+        updList.sort((a,b)=>(o.indexOf(a.id)??999)-(o.indexOf(b.id)??999))
+      }
+    }catch{}
 
     if(!updList.length){ap(page,ap(el('div','empty'),ap(el('div','empty-ic'),'📋'),ap(el('div','empty-t'),'Nenhuma atualização disponível')))}
     else{

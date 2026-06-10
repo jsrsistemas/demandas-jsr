@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
-<title>DemandFlow — JSR Sistemas</title>
+<title>JSR Sistemas — Central da Equipe</title>
 <meta property="og:title" content="JSR Sistemas — Atualizações do sistema"/>
 <meta property="og:description" content="Novas atualizações disponíveis. Clique para acessar o portal e conferir as novidades."/>
 <meta property="og:type" content="website"/>
@@ -146,7 +146,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--blue);box-shadow:0 0 
 .updates-wrap::-webkit-scrollbar-thumb{background:#64748B;border-radius:6px;border:3px solid #E2E8F0}
 .updates-wrap::-webkit-scrollbar-thumb:hover{background:#334155}
 .updates-wrap::-webkit-scrollbar-corner{background:#E2E8F0}
-.updates-wrap table{min-width:1600px;table-layout:fixed}
+.updates-wrap table{min-width:2200px;table-layout:fixed}
 .sort-th{cursor:pointer;user-select:none;transition:background .15s}
 .sort-th:hover{background:#EFF6FF!important}
 .sort-arrow{margin-left:4px;color:var(--t3);font-size:10px}
@@ -379,6 +379,8 @@ function openBlockManager(){
   mf.appendChild(cl);ap(mo,mh,mb,mf);ov.appendChild(mo);document.body.appendChild(ov)
 }
 
+const APP_NAME='JSR Sistemas'
+const APP_SUBTITLE='Central da Equipe'
 const AVC=n=>{const i=(n?.charCodeAt(0)||0)%5;return[['#2563EB','#DBEAFE'],['#059669','#D1FAE5'],['#7C3AED','#EDE9FE'],['#D97706','#FEF3C7'],['#DC2626','#FEE2E2']][i]}
 
 // ── UTILS ────────────────────────────────────────────────────
@@ -449,7 +451,7 @@ function buildSidebar(){
   const isA=CP?.role==='admin'
   const sb=el('div','sb')
   const logo=el('div','sb-logo')
-  ap(logo,ap(el('div','sb-logo-icon'),'D'),ap(el('div',''),ap(el('div','sb-logo-text'),'DemandFlow'),ap(el('div','sb-logo-sub'),'Central da Equipe · v6.4 ✦')))
+  ap(logo,ap(el('div','sb-logo-icon'),'D'),ap(el('div',''),ap(el('div','sb-logo-text'),APP_NAME),ap(el('div','sb-logo-sub'),APP_SUBTITLE+' · v6.5 ✦')))
   sb.appendChild(logo)
   const nav=el('div','sb-nav')
   ap(nav,ap(el('div','sb-sec'),'Menu'))
@@ -715,27 +717,16 @@ function buildUpdates(){
   }
   w.appendChild(h)
 
-  // ── Barra única compacta: filtros + ordenação ─────────────────────────────
-  const ctrlBar=el('div','flex g8 mb10',{flexWrap:'wrap',alignItems:'center',padding:'8px 12px',background:'#F8FAFC',border:'1px solid var(--brd)',borderRadius:'10px'})
+  // ── Barra de controles compacta com filtros colapsáveis ─────────────────
+  const ctrlRow=el('div','flex aic g8 mb8',{flexWrap:'wrap'})
 
-  const searchInp=el('input','',{fontSize:'12px',flex:'1',minWidth:'140px'})
-  searchInp.placeholder='🔍 Buscar título, tela...'
+  // Busca sempre visível
+  const searchInp=el('input','',{fontSize:'12px',flex:'1',minWidth:'180px'})
+  searchInp.placeholder='🔍 Buscar título, tela ou descrição...'
   let filterBlock='',filterMod='',filterCat='',searchTxt=''
   searchInp.oninput=e=>{searchTxt=e.target.value.toLowerCase();redraw()}
 
-  const blkSel=el('select','',{fontSize:'12px',padding:'6px 8px',borderRadius:'7px',border:'1px solid var(--brd)',background:'#fff'})
-  blkSel.innerHTML='<option value="">Bloco</option>'+updateBlocks.map(b=>`<option value="${b.id}">${b.name}</option>`).join('')
-  blkSel.onchange=e=>{filterBlock=e.target.value;redraw()}
-
-  const modSel=el('select','',{fontSize:'12px',padding:'6px 8px',borderRadius:'7px',border:'1px solid var(--brd)',background:'#fff'})
-  modSel.innerHTML='<option value="">Módulo</option>'+Object.entries(DEV_MOD).map(([k,v])=>`<option value="${k}">${v.l}</option>`).join('')
-  modSel.onchange=e=>{filterMod=e.target.value;redraw()}
-
-  const catSel=el('select','',{fontSize:'12px',padding:'6px 8px',borderRadius:'7px',border:'1px solid var(--brd)',background:'#fff'})
-  catSel.innerHTML='<option value="">Tipo dev</option>'+Object.entries(DEV_CAT).map(([k,v])=>`<option value="${k}">${v.l}</option>`).join('')
-  catSel.onchange=e=>{filterCat=e.target.value;redraw()}
-
-  // Ordenação como select compacto
+  // Ordenar sempre visível
   const SORT_OPTS=[
     {l:'📌 Ordem manual',key:'manual',fn:null},
     {l:'📅 Mais recente',key:'createdAt',fn:(a,b)=>{const ta=a.createdAt?.toDate?.()?.getTime()||0;const tb2=b.createdAt?.toDate?.()?.getTime()||0;return tb2-ta}},
@@ -746,24 +737,41 @@ function buildUpdates(){
     {l:'🔢 Versão ↓',key:'version_desc',fn:(a,b)=>(b.version||'').localeCompare(a.version||'','pt-BR',{numeric:true})},
     {l:'📦 Por bloco',key:'blockId',fn:(a,b)=>(a.blockId||'zzz').localeCompare(b.blockId||'zzz')},
   ]
-  const sortSel=el('select','',{fontSize:'12px',padding:'6px 8px',borderRadius:'7px',border:'1px solid var(--brd)',background:'#fff'})
+  const sortSel=el('select','',{fontSize:'12px',padding:'6px 10px',borderRadius:'8px',border:'1px solid var(--brd)',background:'#fff'})
   sortSel.innerHTML=SORT_OPTS.map(o=>`<option value="${o.key}">${o.l}</option>`).join('')
-  let activeSortFn=null
-  let activeSortKey='manual'
-  sortSel.onchange=e=>{
-    activeSortKey=e.target.value
-    const opt=SORT_OPTS.find(o=>o.key===activeSortKey)
-    activeSortFn=opt?.fn||null
-    redraw()
-  }
-
-  const clearBtn=ap(el('button','btn btn-s btn-xs',{whiteSpace:'nowrap'}),'✕')
-  clearBtn.title='Limpar filtros'
-  clearBtn.onclick=()=>{searchInp.value='';blkSel.value='';modSel.value='';catSel.value='';sortSel.value='manual';searchTxt='';filterBlock='';filterMod='';filterCat='';activeSortFn=null;activeSortKey='manual';redraw()}
+  let activeSortFn=null,activeSortKey='manual'
+  sortSel.onchange=e=>{activeSortKey=e.target.value;const opt=SORT_OPTS.find(o=>o.key===activeSortKey);activeSortFn=opt?.fn||null;redraw()}
 
   const totalLbl=ap(el('span','f11 tc3',{whiteSpace:'nowrap'}),'')
-  ap(ctrlBar,searchInp,blkSel,modSel,catSel,ap(el('span','f11 tc3',{flexShrink:'0'}),'Ordenar:'),sortSel,clearBtn,totalLbl)
-  w.appendChild(ctrlBar)
+
+  // Botão "Filtrar ▼" para mostrar/ocultar filtros extras
+  let filtersOpen=false
+  const filterToggle=ap(el('button','btn btn-s btn-sm',{whiteSpace:'nowrap'}),'⚙ Filtrar ▼')
+  filterToggle.onclick=()=>{filtersOpen=!filtersOpen;filterExtra.style.display=filtersOpen?'flex':'none';filterToggle.textContent=filtersOpen?'⚙ Filtrar ▲':'⚙ Filtrar ▼'}
+
+  ap(ctrlRow,searchInp,ap(el('span','f11 tc3',{flexShrink:'0'}),'Ordenar:'),sortSel,filterToggle,totalLbl)
+  w.appendChild(ctrlRow)
+
+  // Filtros extras (ocultos por padrão)
+  const filterExtra=el('div','',{display:'none',gap:'8px',flexWrap:'wrap',alignItems:'center',padding:'8px 12px',background:'#F8FAFC',border:'1px solid var(--brd)',borderRadius:'9px',marginBottom:'8px'})
+
+  const blkSel=el('select','',{fontSize:'12px',padding:'6px 8px',borderRadius:'7px',border:'1px solid var(--brd)',background:'#fff'})
+  blkSel.innerHTML='<option value="">Todos os blocos</option>'+updateBlocks.map(b=>`<option value="${b.id}">${b.name}</option>`).join('')
+  blkSel.onchange=e=>{filterBlock=e.target.value;redraw()}
+
+  const modSel=el('select','',{fontSize:'12px',padding:'6px 8px',borderRadius:'7px',border:'1px solid var(--brd)',background:'#fff'})
+  modSel.innerHTML='<option value="">Todos os módulos</option>'+Object.entries(DEV_MOD).map(([k,v])=>`<option value="${k}">${v.l}</option>`).join('')
+  modSel.onchange=e=>{filterMod=e.target.value;redraw()}
+
+  const catSel=el('select','',{fontSize:'12px',padding:'6px 8px',borderRadius:'7px',border:'1px solid var(--brd)',background:'#fff'})
+  catSel.innerHTML='<option value="">Todos os tipos dev</option>'+Object.entries(DEV_CAT).map(([k,v])=>`<option value="${k}">${v.l}</option>`).join('')
+  catSel.onchange=e=>{filterCat=e.target.value;redraw()}
+
+  const clearBtn=ap(el('button','btn btn-s btn-sm'),'✕ Limpar filtros')
+  clearBtn.onclick=()=>{searchInp.value='';blkSel.value='';modSel.value='';catSel.value='';sortSel.value='manual';searchTxt='';filterBlock='';filterMod='';filterCat='';activeSortFn=null;activeSortKey='manual';redraw()}
+
+  ap(filterExtra,ap(el('span','f11 fw6 tc2'),'Bloco:'),blkSel,ap(el('span','f11 fw6 tc2'),'Módulo:'),modSel,ap(el('span','f11 fw6 tc2'),'Tipo dev:'),catSel,clearBtn)
+  w.appendChild(filterExtra)
 
 
   function getFiltered(){
@@ -840,18 +848,18 @@ function buildUpdates(){
   // Colunas
   const colDefs=[
     {l:'',w:'34px',key:null,drag:true},
-    {l:'BLOCO',w:'140px',key:'blockId'},
-    {l:'TÍTULO',w:'260px',key:'title'},
-    {l:'PROCESSO',w:'120px',key:'procTipo'},
-    {l:'TELA',w:'150px',key:'screenName'},
-    {l:'VERSÃO',w:'70px',key:'version'},
-    {l:'TIPO DEV',w:'140px',key:'devCat'},
-    {l:'MÓDULO',w:'140px',key:'devMod'},
-    {l:'DESCRIÇÃO',w:'220px',key:'description'},
-    {l:'📎',w:'42px',key:null},
-    {l:'PUBLICADO',w:'120px',key:'createdByName'},
-    {l:'VISTO',w:'95px',key:null},
-    ...(isA?[{l:'',w:'70px',key:null}]:[]),
+    {l:'BLOCO',w:'160px',key:'blockId'},
+    {l:'TÍTULO',w:'320px',key:'title'},
+    {l:'PROCESSO',w:'140px',key:'procTipo'},
+    {l:'TELA',w:'180px',key:'screenName'},
+    {l:'VERSÃO',w:'90px',key:'version'},
+    {l:'TIPO DEV',w:'160px',key:'devCat'},
+    {l:'MÓDULO',w:'160px',key:'devMod'},
+    {l:'DESCRIÇÃO',w:'320px',key:'description'},
+    {l:'📎',w:'46px',key:null},
+    {l:'PUBLICADO',w:'130px',key:'createdByName'},
+    {l:'VISTO',w:'110px',key:null},
+    ...(isA?[{l:'',w:'80px',key:null}]:[]),
   ]
 
   const hr=el('tr','',{background:'#F8FAFC'})
@@ -1806,7 +1814,7 @@ function renderLogin(){
   sb.onclick=async()=>{err.style.display='none';sb.textContent='Entrando...';sb.disabled=true;try{await signInWithEmailAndPassword(auth,em,pw)}catch{err.textContent='E-mail ou senha incorretos.';err.style.display='block';sb.textContent='Entrar';sb.disabled=false}}
   pwI.onkeydown=e=>{if(e.key==='Enter')sb.click()}
   const lc=el('div','login-card')
-  ap(lc,ap(el('div','',{textAlign:'center',marginBottom:'28px'}),ap(el('div','',{width:'50px',height:'50px',borderRadius:'12px',background:'var(--blue)',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 12px',color:'#fff',fontSize:'22px',fontWeight:'700'}),'D'),ap(el('h1','',{fontSize:'22px',fontWeight:'700',marginBottom:'4px'}),'DemandFlow'),ap(el('p','tc2',{fontSize:'13px'}),'Central da sua equipe'),ap(el('span','',{display:'inline-block',marginTop:'6px',padding:'2px 10px',borderRadius:'20px',background:'#EFF6FF',color:'#2563EB',fontSize:'10px',fontWeight:'600',border:'1px solid #BFDBFE'}),'versão 4.2')),ap(el('div','flex',{flexDirection:'column',gap:'11px'}),ap(ap(el('div','form-g',{marginBottom:'0'}),ap(el('label','form-l'),'E-mail')),emI),ap(ap(el('div','form-g',{marginBottom:'0'}),ap(el('label','form-l'),'Senha')),pwI),err,sb))
+  ap(lc,ap(el('div','',{textAlign:'center',marginBottom:'28px'}),ap(el('div','',{width:'50px',height:'50px',borderRadius:'12px',background:'var(--blue)',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 12px',color:'#fff',fontSize:'22px',fontWeight:'700'}),'D'),ap(el('h1','',{fontSize:'22px',fontWeight:'700',marginBottom:'4px'}),APP_NAME),ap(el('p','tc2',{fontSize:'13px'}),'Central da sua equipe'),ap(el('span','',{display:'inline-block',marginTop:'6px',padding:'2px 10px',borderRadius:'20px',background:'#EFF6FF',color:'#2563EB',fontSize:'10px',fontWeight:'600',border:'1px solid #BFDBFE'}),'v6.5')),ap(el('div','flex',{flexDirection:'column',gap:'11px'}),ap(ap(el('div','form-g',{marginBottom:'0'}),ap(el('label','form-l'),'E-mail')),emI),ap(ap(el('div','form-g',{marginBottom:'0'}),ap(el('label','form-l'),'Senha')),pwI),err,sb))
   ap(root,ap(el('div','login-bg'),lc,ap(el('p','',{textAlign:'center',fontSize:'12px',color:'rgba(255,255,255,.4)',marginTop:'14px'}),'Sem acesso? Solicite ao administrador.')))
 }
 
@@ -1899,7 +1907,7 @@ function renderPortal(){
     ap(el('div','',{textAlign:'center',marginBottom:'24px'}),
       ap(el('div','',{width:'50px',height:'50px',borderRadius:'12px',background:'var(--blue)',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 12px',color:'#fff',fontSize:'22px',fontWeight:'700'}),'D'),
       ap(el('h1','',{fontSize:'20px',fontWeight:'700',marginBottom:'4px'}),'Portal do Cliente'),
-      ap(el('p','tc2',{fontSize:'12px'}),'JSR Sistemas — Atualizações do sistema')
+      ap(el('p','tc2',{fontSize:'12px'}),APP_NAME+' — Atualizações do sistema')
     )
   )
 
@@ -1963,7 +1971,7 @@ async function showPortalUpdates(client){
 
   // Header
   const hdr=el('div','',{background:'#fff',borderBottom:'1px solid var(--brd)',padding:'0 24px',height:'56px',display:'flex',alignItems:'center',justifyContent:'space-between'})
-  ap(hdr,ap(el('div','flex aic g10'),ap(el('div','',{width:'32px',height:'32px',borderRadius:'8px',background:'var(--blue)',display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontWeight:'700'}),'D'),ap(el('div',''),ap(el('div','',{fontWeight:'700',fontSize:'14px'}),'DemandFlow'),ap(el('div','',{fontSize:'11px',color:'var(--t2)'}),'Portal do Cliente — JSR Sistemas'))))
+  ap(hdr,ap(el('div','flex aic g10'),ap(el('div','',{width:'32px',height:'32px',borderRadius:'8px',background:'var(--blue)',display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontWeight:'700'}),'D'),ap(el('div',''),ap(el('div','',{fontWeight:'700',fontSize:'14px'}),APP_NAME),ap(el('div','',{fontSize:'11px',color:'var(--t2)'}),'Portal do Cliente — JSR Sistemas'))))
   const sair=ap(el('button','btn btn-s btn-sm'),'Sair');sair.onclick=()=>{sessionStorage.removeItem('portal_client');renderPortal()}
   hdr.appendChild(sair);w.appendChild(hdr)
 

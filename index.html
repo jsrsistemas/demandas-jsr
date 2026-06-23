@@ -304,7 +304,7 @@ const fb=initializeApp(fcfg);const auth=getAuth(fb);const db=getFirestore(fb);co
 
 // ── ESTADO ──────────────────────────────────────────────────
 let CU=null,CP=null,sec='demands',unsubs=[]
-let demands=[],notices=[],prospects=[],users=[],updates=[]
+let demands=[],notices=[],prospects=[],users=[],updates=[],trainings=[]
 let demTab='internal',selDem=null,demPane=null
 let pomoOpen=false,pomoInt=null
 let PS={mode:'work',on:false,secs:25*60,sess:0,hist:[],cfg:{work:25,short:5,long:15}}
@@ -325,6 +325,7 @@ const NP={info:{l:'Informativo',c:'#1E4E79',bg:'#EDF3F8',bd:'#BCD2E2',top:'#1E4E
 const DEV_CAT={nova_tela:{l:'Nova tela',c:'#5B4B8A',bg:'#F2F0F8',bd:'#CFC7E3'},correcoes:{l:'Correções',c:'#A93B3B',bg:'#FAEFEF',bd:'#E5BFBF'},implementacoes:{l:'Implementações',c:'#1E4E79',bg:'#EDF3F8',bd:'#BCD2E2'},melhorias:{l:'Melhorias',c:'#2F7D5C',bg:'#EDF7F2',bd:'#B5DCC9'}}
 const DEV_MOD={retaguarda:{l:'Retaguarda',c:'#14181F',bg:'#F1F5F9',bd:'#CBD5E1'},financeiro:{l:'Financeiro',c:'#2F7D5C',bg:'#EDF7F2',bd:'#B5DCC9'},fiscal:{l:'Fiscal',c:'#9C6615',bg:'#FBF5E9',bd:'#E8D2A6'},custo:{l:'Módulo de custo',c:'#8E3A62',bg:'#F8EFF4',bd:'#E0B8CD'},erp:{l:'ERP',c:'#1E4E79',bg:'#EDF3F8',bd:'#BCD2E2'},app_web:{l:'APP Web',c:'#5B4B8A',bg:'#F2F0F8',bd:'#CFC7E3'},terminal:{l:'Terminal de etiqueta',c:'#A85B2A',bg:'#FAF2EC',bd:'#E5C7AE'}}
 const PROC_TIPO={comercial:{l:'Comercial',c:'#1E4E79',bg:'#EDF3F8',bd:'#BCD2E2'},financeiro:{l:'Financeiro',c:'#2F7D5C',bg:'#EDF7F2',bd:'#B5DCC9'},fiscal:{l:'Fiscal',c:'#9C6615',bg:'#FBF5E9',bd:'#E8D2A6'},estoque:{l:'Estoque',c:'#A85B2A',bg:'#FAF2EC',bd:'#E5C7AE'},producao:{l:'Produção',c:'#5B4B8A',bg:'#F2F0F8',bd:'#CFC7E3'},operacional:{l:'Operacional',c:'#2A7286',bg:'#EDF6F8',bd:'#B8DCE5'},rh:{l:'RH',c:'#8E3A62',bg:'#F8EFF4',bd:'#E0B8CD'}}
+const TRAIN_ST={solicitado:{l:'Solicitado',c:'#1E4E79',bg:'#EDF3F8',bd:'#BCD2E2'},agendado:{l:'Agendado',c:'#9C6615',bg:'#FBF5E9',bd:'#E8D2A6'},andamento:{l:'Em andamento',c:'#2A7286',bg:'#EDF6F8',bd:'#B8DCE5'},concluido:{l:'Concluído',c:'#2F7D5C',bg:'#EDF7F2',bd:'#B5DCC9'},cancelado:{l:'Cancelado',c:'#A93B3B',bg:'#FAEFEF',bd:'#E5BFBF'}}
 
 // ── BLOCOS DE ATUALIZAÇÕES ───────────────────────────────────────────────────
 let updateBlocks=[] // [{id, name, color}]
@@ -438,7 +439,8 @@ const NAV_ITEMS=[
   {id:'demands',i:'📋',l:'Demandas'},
   {id:'notices',i:'📢',l:'Avisos'},
   {id:'updates',i:'🎓',l:'Atualizações'},
-  {id:'prospects',i:'🎯',l:'Prospects'},
+  {id:'trainings',i:'🎯',l:'Treinamentos'},
+  {id:'prospects',i:'💼',l:'Prospects'},
   {id:'portal',i:'🔗',l:'Portal Cliente'},
 ]
 function getBadge(id){
@@ -452,7 +454,7 @@ function buildSidebar(){
   const isA=CP?.role==='admin'
   const sb=el('div','sb')
   const logo=el('div','sb-logo')
-  ap(logo,ap(el('div','sb-logo-icon'),'D'),ap(el('div',''),ap(el('div','sb-logo-text'),APP_NAME),ap(el('div','sb-logo-sub'),APP_SUBTITLE+' · v6.6 ✦')))
+  ap(logo,ap(el('div','sb-logo-icon'),'D'),ap(el('div',''),ap(el('div','sb-logo-text'),APP_NAME),ap(el('div','sb-logo-sub'),APP_SUBTITLE+' · v6.7 ✦')))
   sb.appendChild(logo)
   const nav=el('div','sb-nav')
   ap(nav,ap(el('div','sb-sec'),'Menu'))
@@ -1799,6 +1801,7 @@ function renderSection(){
   else if(sec==='updates')mc.appendChild(buildUpdates())
   else if(sec==='prospects')mc.appendChild(buildProspects())
   else if(sec==='users')mc.appendChild(buildUsers())
+  else if(sec==='trainings')mc.appendChild(buildTrainings())
   else if(sec==='portal')mc.appendChild(buildPortalPanel())
 }
 function renderApp(){
@@ -1827,6 +1830,7 @@ function subscribe(){
   unsubs.push(onSnapshot(query(collection(db,'notices'),orderBy('createdAt','desc')),snap=>{notices=snap.docs.map(d=>({id:d.id,...d.data()}));if(sec==='notices')renderSection();else updBadges()}))
   unsubs.push(onSnapshot(query(collection(db,'updates'),orderBy('createdAt','desc')),snap=>{updates=snap.docs.map(d=>({id:d.id,...d.data()}));if(sec==='updates')renderSection();else updBadges()}))
   unsubs.push(onSnapshot(query(collection(db,'prospects'),orderBy('createdAt','desc')),snap=>{prospects=snap.docs.map(d=>({id:d.id,...d.data()}));if(sec==='prospects')renderSection();else updBadges()}))
+  unsubs.push(onSnapshot(query(collection(db,'trainings'),orderBy('createdAt','desc')),snap=>{trainings=snap.docs.map(d=>({id:d.id,...d.data()}));if(sec==='trainings')renderSection();else updBadges()}))
   getDocs(collection(db,'users')).then(s=>{users=s.docs.map(d=>({id:d.id,...d.data()}))})
 }
 
@@ -2057,6 +2061,181 @@ async function showPortalUpdates(client){
 }
 
 // ── PAINEL PORTAL (admin) ────────────────────────────────────
+// ── TREINAMENTOS ─────────────────────────────────────────────
+function buildTrainings(){
+  const isA=CP?.role==='admin'
+  const w=el('div','page')
+
+  const h=el('div','flex aic jcsb mb16')
+  ap(h,ap(el('h2','',{fontSize:'16px',fontWeight:'700'}),'Controle de Treinamentos'))
+  const nb=ap(el('button','btn btn-p btn-sm'),'+ Novo treinamento');nb.onclick=()=>openTrainingModal()
+  h.appendChild(nb)
+  w.appendChild(h)
+
+  // Stats
+  const sg=el('div','stats-g stats-4 mb16')
+  ;[
+    {v:trainings.filter(t=>t.status==='solicitado').length,l:'Solicitados',c:'#1E4E79'},
+    {v:trainings.filter(t=>t.status==='agendado').length,l:'Agendados',c:'#9C6615'},
+    {v:trainings.filter(t=>t.status==='andamento').length,l:'Em andamento',c:'#2A7286'},
+    {v:trainings.filter(t=>t.status==='concluido').length,l:'Concluídos',c:'#2F7D5C'},
+  ].forEach(s=>{
+    ap(sg,ap(el('div','stat-c',{borderLeftColor:s.c}),ap(el('div','stat-v',{color:s.c}),String(s.v)),ap(el('div','stat-l'),s.l)))
+  })
+  w.appendChild(sg)
+
+  // Painel resumo por colaborador
+  if(isA&&trainings.length){
+    const byUser={}
+    trainings.forEach(t=>{
+      if(!t.responsavelName)return
+      if(!byUser[t.responsavelName])byUser[t.responsavelName]={total:0,concluidos:0,minutos:0}
+      byUser[t.responsavelName].total++
+      if(t.status==='concluido')byUser[t.responsavelName].concluidos++
+      byUser[t.responsavelName].minutos+=Number(t.duracaoMin)||0
+    })
+    const users2=Object.entries(byUser)
+    if(users2.length){
+      const rc=el('div','card mb16')
+      ap(rc.appendChild(el('div','card-h')),ap(el('div','card-t'),'📊 Resumo por colaborador'))
+      const rb=el('div','card-b',{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))',gap:'10px'})
+      users2.forEach(([name,d])=>{
+        const hrs=Math.floor(d.minutos/60),mins=d.minutos%60
+        const card=el('div','',{background:'#F8FAFB',borderRadius:'9px',padding:'12px 14px',border:'1px solid var(--brd)'})
+        ap(card,
+          ap(el('div','flex aic g8 mb8'),av(name,28),ap(el('div','fw6 f13'),name)),
+          ap(el('div','f12 tc2'),'📚 '+d.total+' treinamento'+(d.total!==1?'s':'')),
+          ap(el('div','f12 tc2'),'✓ '+d.concluidos+' concluído'+(d.concluidos!==1?'s':'')),
+          ap(el('div','f12 tc2'),'⏱ '+(hrs>0?hrs+'h ':'')+mins+'min total')
+        )
+        rb.appendChild(card)
+      })
+      rc.appendChild(rb);w.appendChild(rc)
+    }
+  }
+
+  // Lista de treinamentos
+  if(!trainings.length){
+    ap(w,ap(el('div','empty'),ap(el('div','empty-ic'),'🎯'),ap(el('div','empty-t'),'Nenhum treinamento'),ap(el('div','empty-s'),'Clique em "+ Novo treinamento" para começar.')))
+    return w
+  }
+
+  const listCard=el('div','card')
+  ap(listCard.appendChild(el('div','card-h')),ap(el('div','card-t'),'Treinamentos registrados ('+trainings.length+')'))
+  const lb=el('div','')
+
+  // Ordenar: mais recentes primeiro
+  const sorted=[...trainings].sort((a,b)=>{const ta=a.createdAt?.toDate?.()?.getTime()||0;const tb=b.createdAt?.toDate?.()?.getTime()||0;return tb-ta})
+
+  sorted.forEach(t=>{
+    const st=TRAIN_ST[t.status]||TRAIN_ST.solicitado
+    const row=el('div','',{padding:'14px 18px',borderBottom:'1px solid var(--brd)',display:'flex',gap:'14px',alignItems:'flex-start',cursor:'pointer',transition:'background .15s'})
+    row.onmouseenter=()=>row.style.background='#F8FAFB';row.onmouseleave=()=>row.style.background='transparent'
+
+    // Faixa de status
+    const statusBar=el('div','',{width:'4px',alignSelf:'stretch',borderRadius:'3px',background:st.c,flexShrink:'0'})
+
+    // Conteúdo principal
+    const main=el('div','',{flex:'1',minWidth:'0'})
+    const topRow=el('div','flex aic g8 mb4',{flexWrap:'wrap'})
+    ap(topRow,tag_(st,st.l))
+    if(t.clienteName)ap(topRow,ap(el('span','f12 fw6',{color:'var(--t1)'}),'👤 '+t.clienteName))
+    main.appendChild(topRow)
+    ap(main,ap(el('div','fw6 f13 mb4'),t.assunto||'Sem assunto'))
+    const metaRow=el('div','flex g12',{flexWrap:'wrap'})
+    if(t.responsavelName)ap(metaRow,ap(el('span','f11 tc2'),'🧑‍🏫 '+t.responsavelName))
+    if(t.dataAgendada)ap(metaRow,ap(el('span','f11 tc2'),'📅 '+new Date(t.dataAgendada+'T00:00').toLocaleDateString('pt-BR')))
+    if(t.duracaoMin)ap(metaRow,ap(el('span','f11 tc2'),'⏱ '+t.duracaoMin+'min'))
+    main.appendChild(metaRow)
+    if(t.observacoes)ap(main,ap(el('p','f11 tc3',{marginTop:'5px',lineHeight:'1.5'}),t.observacoes))
+
+    // Ações
+    const acts=el('div','flex g6',{flexShrink:'0'})
+    const editBtn=ap(el('button','btn btn-s btn-xs'),'✏ Editar');editBtn.onclick=e=>{e.stopPropagation();openTrainingModal(t)}
+    acts.appendChild(editBtn)
+    if(isA){const delBtn=ap(el('button','btn btn-d btn-xs'),'×');delBtn.onclick=async e=>{e.stopPropagation();if(confirm('Excluir treinamento?'))await deleteDoc(doc(db,'trainings',t.id))};acts.appendChild(delBtn)}
+
+    row.onclick=()=>openTrainingModal(t)
+    ap(row,statusBar,main,acts);lb.appendChild(row)
+  })
+  listCard.appendChild(lb);w.appendChild(listCard)
+  return w
+}
+
+function openTrainingModal(ex=null){
+  let f=ex?{...ex}:{clienteName:'',clienteEmail:'',assunto:'',status:'solicitado',responsavelId:'',responsavelName:'',dataAgendada:'',dataRealizada:'',duracaoMin:'',observacoes:''}
+  const ov=el('div','overlay');const mo=el('div','modal',{maxWidth:'560px'})
+  const mh=ap(el('div','modal-h'),ap(el('div','modal-t'),ex?'Editar treinamento':'Novo treinamento'))
+  const x=ap(el('button','modal-x'),'×');x.onclick=()=>ov.remove();mh.appendChild(x)
+  const mb=el('div','modal-b')
+
+  // Cliente (do portal)
+  const cg=ap(el('div','form-g'),ap(el('label','form-l'),'Cliente'))
+  const cs=el('select','')
+  // Carregar clientes do portal
+  cs.innerHTML='<option value="">— Carregando clientes... —</option>'
+  getDocs(collection(db,'clientPortal')).then(snap=>{
+    const clients=snap.docs.map(d=>d.data())
+    cs.innerHTML='<option value="">— Selecione o cliente —</option>'+clients.map(c=>`<option value="${c.email}">${c.email}${c.phone?' ('+c.phone+')':''}</option>`).join('')+'<option value="__outro__">+ Outro (digitar manualmente)</option>'
+    if(f.clienteEmail)cs.value=f.clienteEmail
+  }).catch(()=>{cs.innerHTML='<option value="">— Erro ao carregar —</option><option value="__outro__">+ Digitar manualmente</option>'})
+  cg.appendChild(cs)
+
+  // Campo manual de cliente (oculto)
+  const manualG=ap(el('div','form-g',{display:'none'}),ap(el('label','form-l'),'Nome do cliente (manual)'))
+  const manualI=el('input','');manualI.placeholder='Nome ou empresa';manualI.value=f.clienteName||'';manualI.oninput=e=>f.clienteName=e.target.value;manualG.appendChild(manualI)
+
+  cs.onchange=e=>{
+    if(e.target.value==='__outro__'){manualG.style.display='';f.clienteEmail='';f.clienteName=''}
+    else{manualG.style.display='none';f.clienteEmail=e.target.value;f.clienteName=e.target.value}
+  }
+
+  // Assunto
+  const ag=ap(el('div','form-g'),ap(el('label','form-l'),'Assunto / Tema do treinamento *'))
+  const ai=el('input','');ai.placeholder='Ex: Emissão de NF-e, Módulo financeiro...';ai.value=f.assunto||'';ai.oninput=e=>f.assunto=e.target.value;ag.appendChild(ai)
+
+  // Status + Responsável
+  const r1=el('div','form-row')
+  const stg=ap(el('div','form-g',{marginBottom:'0'}),ap(el('label','form-l'),'Status'))
+  const sts=el('select','');sts.innerHTML=Object.entries(TRAIN_ST).map(([k,v])=>`<option value="${k}">${v.l}</option>`).join('');sts.value=f.status||'solicitado';sts.onchange=e=>f.status=e.target.value;stg.appendChild(sts)
+  const rg=ap(el('div','form-g',{marginBottom:'0'}),ap(el('label','form-l'),'Responsável (equipe)'))
+  const rs=el('select','');rs.innerHTML='<option value="">— Selecione —</option>'+users.map(u=>`<option value="${u.id}">${u.name}</option>`).join('');rs.value=f.responsavelId||'';rs.onchange=e=>{f.responsavelId=e.target.value;f.responsavelName=users.find(u=>u.id===e.target.value)?.name||''};rg.appendChild(rs)
+  ap(r1,stg,rg)
+
+  // Datas
+  const r2=el('div','form-row')
+  const dag=ap(el('div','form-g',{marginBottom:'0'}),ap(el('label','form-l'),'Data agendada'))
+  const dai=el('input','');dai.type='date';dai.value=f.dataAgendada||'';dai.oninput=e=>f.dataAgendada=e.target.value;dag.appendChild(dai)
+  const drg=ap(el('div','form-g',{marginBottom:'0'}),ap(el('label','form-l'),'Data realizada'))
+  const dri=el('input','');dri.type='date';dri.value=f.dataRealizada||'';dri.oninput=e=>f.dataRealizada=e.target.value;drg.appendChild(dri)
+  ap(r2,dag,drg)
+
+  // Duração
+  const dug=ap(el('div','form-g'),ap(el('label','form-l'),'Duração (minutos)'))
+  const dui=el('input','');dui.type='number';dui.placeholder='Ex: 60';dui.value=f.duracaoMin||'';dui.oninput=e=>f.duracaoMin=e.target.value;dug.appendChild(dui)
+
+  // Observações
+  const og=ap(el('div','form-g'),ap(el('label','form-l'),'Observações'))
+  const oi=el('textarea','',{resize:'vertical'});oi.rows=3;oi.placeholder='Detalhes do treinamento...';oi.value=f.observacoes||'';oi.oninput=e=>f.observacoes=e.target.value;og.appendChild(oi)
+
+  ap(mb,cg,manualG,ag,r1,r2,dug,og)
+
+  const mf=el('div','modal-f')
+  const can=ap(el('button','btn btn-s'),'Cancelar');can.onclick=()=>ov.remove()
+  const sv=ap(el('button','btn btn-p'),ex?'Salvar':'Criar')
+  sv.onclick=async()=>{
+    if(!f.assunto.trim()){ai.style.borderColor='var(--red)';ai.focus();return}
+    sv.disabled=true;sv.textContent='Salvando...'
+    try{
+      const data={clienteName:f.clienteName||'',clienteEmail:f.clienteEmail||'',assunto:f.assunto,status:f.status||'solicitado',responsavelId:f.responsavelId||'',responsavelName:f.responsavelName||'',dataAgendada:f.dataAgendada||'',dataRealizada:f.dataRealizada||'',duracaoMin:f.duracaoMin?Number(f.duracaoMin):null,observacoes:f.observacoes||'',updatedAt:serverTimestamp()}
+      if(ex)await updateDoc(doc(db,'trainings',ex.id),data)
+      else await addDoc(collection(db,'trainings'),{...data,createdBy:CU.uid,createdByName:CP.name,createdAt:serverTimestamp()})
+      ov.remove()
+    }catch(e){alert('Erro: '+e.message);sv.disabled=false;sv.textContent=ex?'Salvar':'Criar'}
+  }
+  ap(mf,can,sv);ap(mo,mh,mb,mf);ov.appendChild(mo);document.body.appendChild(ov)
+}
+
 function buildPortalPanel(){
   const w=el('div','page')
   ap(w,ap(el('h2','mb16',{fontSize:'16px',fontWeight:'700'}),'Portal do Cliente'))

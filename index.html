@@ -304,7 +304,7 @@ const fb=initializeApp(fcfg);const auth=getAuth(fb);const db=getFirestore(fb);co
 
 // ── ESTADO ──────────────────────────────────────────────────
 let CU=null,CP=null,sec='demands',unsubs=[]
-let demands=[],notices=[],prospects=[],users=[],updates=[],trainings=[]
+let demands=[],notices=[],prospects=[],users=[],updates=[],trainings=[],clients=[]
 let demTab='internal',selDem=null,demPane=null
 let pomoOpen=false,pomoInt=null
 let PS={mode:'work',on:false,secs:25*60,sess:0,hist:[],cfg:{work:25,short:5,long:15}}
@@ -454,7 +454,7 @@ function buildSidebar(){
   const isA=CP?.role==='admin'
   const sb=el('div','sb')
   const logo=el('div','sb-logo')
-  ap(logo,ap(el('div','sb-logo-icon'),'D'),ap(el('div',''),ap(el('div','sb-logo-text'),APP_NAME),ap(el('div','sb-logo-sub'),APP_SUBTITLE+' · v6.8 ✦')))
+  ap(logo,ap(el('div','sb-logo-icon'),'D'),ap(el('div',''),ap(el('div','sb-logo-text'),APP_NAME),ap(el('div','sb-logo-sub'),APP_SUBTITLE+' · v6.9 ✦')))
   sb.appendChild(logo)
   const nav=el('div','sb-nav')
   ap(nav,ap(el('div','sb-sec'),'Menu'))

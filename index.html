@@ -454,7 +454,7 @@ function buildSidebar(){
   const isA=CP?.role==='admin'
   const sb=el('div','sb')
   const logo=el('div','sb-logo')
-  ap(logo,ap(el('div','sb-logo-icon'),'D'),ap(el('div',''),ap(el('div','sb-logo-text'),APP_NAME),ap(el('div','sb-logo-sub'),APP_SUBTITLE+' · v6.7 ✦')))
+  ap(logo,ap(el('div','sb-logo-icon'),'D'),ap(el('div',''),ap(el('div','sb-logo-text'),APP_NAME),ap(el('div','sb-logo-sub'),APP_SUBTITLE+' · v6.8 ✦')))
   sb.appendChild(logo)
   const nav=el('div','sb-nav')
   ap(nav,ap(el('div','sb-sec'),'Menu'))
@@ -1802,6 +1802,7 @@ function renderSection(){
   else if(sec==='prospects')mc.appendChild(buildProspects())
   else if(sec==='users')mc.appendChild(buildUsers())
   else if(sec==='trainings')mc.appendChild(buildTrainings())
+  else if(sec==='clients')mc.appendChild(buildClients())
   else if(sec==='portal')mc.appendChild(buildPortalPanel())
 }
 function renderApp(){
@@ -1831,6 +1832,7 @@ function subscribe(){
   unsubs.push(onSnapshot(query(collection(db,'updates'),orderBy('createdAt','desc')),snap=>{updates=snap.docs.map(d=>({id:d.id,...d.data()}));if(sec==='updates')renderSection();else updBadges()}))
   unsubs.push(onSnapshot(query(collection(db,'prospects'),orderBy('createdAt','desc')),snap=>{prospects=snap.docs.map(d=>({id:d.id,...d.data()}));if(sec==='prospects')renderSection();else updBadges()}))
   unsubs.push(onSnapshot(query(collection(db,'trainings'),orderBy('createdAt','desc')),snap=>{trainings=snap.docs.map(d=>({id:d.id,...d.data()}));if(sec==='trainings')renderSection();else updBadges()}))
+  unsubs.push(onSnapshot(query(collection(db,'clients'),orderBy('createdAt','desc')),snap=>{clients=snap.docs.map(d=>({id:d.id,...d.data()}));if(sec==='clients')renderSection();else updBadges()}))
   getDocs(collection(db,'users')).then(s=>{users=s.docs.map(d=>({id:d.id,...d.data()}))})
 }
 
@@ -2061,6 +2063,112 @@ async function showPortalUpdates(client){
 }
 
 // ── PAINEL PORTAL (admin) ────────────────────────────────────
+// ── CLIENTES (cadastro completo) ─────────────────────────────
+function buildClients(){
+  const isA=CP?.role==='admin'
+  const w=el('div','page')
+
+  const h=el('div','flex aic jcsb mb16')
+  ap(h,ap(el('h2','',{fontSize:'16px',fontWeight:'700'}),'Cadastro de Clientes'))
+  const nb=ap(el('button','btn btn-p btn-sm'),'+ Novo cliente');nb.onclick=()=>openClientModal()
+  h.appendChild(nb)
+  w.appendChild(h)
+
+  // Busca
+  const searchBar=el('div','flex g8 mb12')
+  const si=el('input','',{flex:'1',fontSize:'13px'})
+  si.placeholder='🔍 Buscar por nome, empresa, e-mail ou telefone...'
+  let searchT=''
+  si.oninput=e=>{searchT=e.target.value.toLowerCase();render()}
+  searchBar.appendChild(si)
+  w.appendChild(searchBar)
+
+  // Lista
+  const listWrap=el('div','')
+  w.appendChild(listWrap)
+
+  function render(){
+    listWrap.innerHTML=''
+    const filtered=clients.filter(c=>{
+      if(!searchT)return true
+      const s=((c.contactName||'')+(c.companyName||'')+(c.email||'')+(c.phone||'')).toLowerCase()
+      return s.includes(searchT)
+    })
+    if(!filtered.length){
+      ap(listWrap,ap(el('div','empty'),ap(el('div','empty-ic'),'🏢'),ap(el('div','empty-t'),searchT?'Nenhum cliente encontrado':'Nenhum cliente cadastrado'),ap(el('div','empty-s'),'Clique em "+ Novo cliente" para começar.')))
+      return
+    }
+    const card=el('div','card')
+    ap(card.appendChild(el('div','card-h')),ap(el('div','card-t'),'Clientes ('+filtered.length+')'))
+    const body=el('div','')
+    filtered.forEach(c=>{
+      const row=el('div','',{padding:'14px 18px',borderBottom:'1px solid var(--brd)',display:'flex',gap:'14px',alignItems:'center',cursor:'pointer',transition:'background .15s'})
+      row.onmouseenter=()=>row.style.background='#F8FAFB';row.onmouseleave=()=>row.style.background='transparent'
+
+      const avt=av(c.companyName||c.contactName||'?',40)
+      const main=el('div','',{flex:'1',minWidth:'0'})
+      ap(main,ap(el('div','fw6 f13 mb4'),c.companyName||c.contactName||'Sem nome'))
+      const meta=el('div','flex g12',{flexWrap:'wrap'})
+      if(c.contactName)ap(meta,ap(el('span','f11 tc2'),'👤 '+c.contactName))
+      if(c.email)ap(meta,ap(el('span','f11 tc2'),'✉ '+c.email))
+      if(c.phone)ap(meta,ap(el('span','f11 tc2'),'📱 '+c.phone))
+      main.appendChild(meta)
+      if(c.notes)ap(main,ap(el('p','f11 tc3',{marginTop:'4px',lineHeight:'1.5'}),c.notes))
+
+      const acts=el('div','flex g6',{flexShrink:'0'})
+      const editBtn=ap(el('button','btn btn-s btn-xs'),'✏ Editar');editBtn.onclick=e=>{e.stopPropagation();openClientModal(c)}
+      acts.appendChild(editBtn)
+      if(isA){const del=ap(el('button','btn btn-d btn-xs'),'×');del.onclick=async e=>{e.stopPropagation();if(confirm('Excluir cliente '+(c.companyName||c.contactName)+'?'))await deleteDoc(doc(db,'clients',c.id))};acts.appendChild(del)}
+
+      row.onclick=()=>openClientModal(c)
+      ap(row,avt,main,acts);body.appendChild(row)
+    })
+    card.appendChild(body);listWrap.appendChild(card)
+  }
+  render()
+  return w
+}
+
+function openClientModal(ex=null){
+  let f=ex?{...ex}:{contactName:'',companyName:'',email:'',phone:'',document:'',address:'',notes:''}
+  const ov=el('div','overlay');const mo=el('div','modal',{maxWidth:'520px'})
+  const mh=ap(el('div','modal-h'),ap(el('div','modal-t'),ex?'Editar cliente':'Novo cliente'))
+  const x=ap(el('button','modal-x'),'×');x.onclick=()=>ov.remove();mh.appendChild(x)
+  const mb=el('div','modal-b')
+
+  const mkInp=(label,key,ph,type)=>{
+    const g=ap(el('div','form-g'),ap(el('label','form-l'),label))
+    const i=el('input','');i.placeholder=ph||'';i.value=f[key]||'';if(type)i.type=type;i.oninput=e=>f[key]=e.target.value;g.appendChild(i);return g
+  }
+
+  const r1=el('div','form-row')
+  ap(r1,mkInp('Nome da pessoa *','contactName','Ex: João Silva'),mkInp('Nome do cliente/empresa','companyName','Ex: Loja XYZ Ltda'))
+  const r2=el('div','form-row')
+  ap(r2,mkInp('E-mail','email','cliente@exemplo.com','email'),mkInp('Telefone / WhatsApp','phone','(11) 99999-9999'))
+  const r3=el('div','form-row')
+  ap(r3,mkInp('CNPJ / CPF','document','00.000.000/0000-00'),mkInp('Endereço','address','Cidade, UF'))
+
+  const ng=ap(el('div','form-g'),ap(el('label','form-l'),'Observações'))
+  const ni=el('textarea','',{resize:'vertical'});ni.rows=3;ni.placeholder='Detalhes adicionais...';ni.value=f.notes||'';ni.oninput=e=>f.notes=e.target.value;ng.appendChild(ni)
+
+  ap(mb,r1,r2,r3,ng)
+
+  const mf=el('div','modal-f')
+  const can=ap(el('button','btn btn-s'),'Cancelar');can.onclick=()=>ov.remove()
+  const sv=ap(el('button','btn btn-p'),ex?'Salvar':'Criar cliente')
+  sv.onclick=async()=>{
+    if(!f.contactName.trim()){alert('Preencha o nome da pessoa.');return}
+    sv.disabled=true;sv.textContent='Salvando...'
+    try{
+      const data={contactName:f.contactName,companyName:f.companyName||'',email:f.email||'',phone:f.phone||'',document:f.document||'',address:f.address||'',notes:f.notes||'',updatedAt:serverTimestamp()}
+      if(ex)await updateDoc(doc(db,'clients',ex.id),data)
+      else await addDoc(collection(db,'clients'),{...data,createdBy:CU.uid,createdByName:CP.name,createdAt:serverTimestamp()})
+      ov.remove()
+    }catch(e){alert('Erro: '+e.message);sv.disabled=false;sv.textContent=ex?'Salvar':'Criar cliente'}
+  }
+  ap(mf,can,sv);ap(mo,mh,mb,mf);ov.appendChild(mo);document.body.appendChild(ov)
+}
+
 // ── TREINAMENTOS ─────────────────────────────────────────────
 function buildTrainings(){
   const isA=CP?.role==='admin'
@@ -2068,8 +2176,11 @@ function buildTrainings(){
 
   const h=el('div','flex aic jcsb mb16')
   ap(h,ap(el('h2','',{fontSize:'16px',fontWeight:'700'}),'Controle de Treinamentos'))
+  const headerBtns=el('div','flex g8')
+  const reportBtn=ap(el('button','btn btn-s btn-sm'),'📊 Relatório');reportBtn.onclick=()=>openTrainingReport()
   const nb=ap(el('button','btn btn-p btn-sm'),'+ Novo treinamento');nb.onclick=()=>openTrainingModal()
-  h.appendChild(nb)
+  ap(headerBtns,reportBtn,nb)
+  h.appendChild(headerBtns)
   w.appendChild(h)
 
   // Stats
@@ -2150,7 +2261,21 @@ function buildTrainings(){
     if(t.observacoes)ap(main,ap(el('p','f11 tc3',{marginTop:'5px',lineHeight:'1.5'}),t.observacoes))
 
     // Ações
-    const acts=el('div','flex g6',{flexShrink:'0'})
+    const acts=el('div','flex g6',{flexShrink:'0',flexWrap:'wrap',justifyContent:'flex-end'})
+    // Link de assinatura
+    if(t.signedAt){
+      ap(acts,ap(el('span','tag',{background:'#EDF7F2',color:'#2F7D5C',borderColor:'#B5DCC9',fontSize:'10px'}),'✓ Assinado'))
+    } else if(t.status==='concluido'||t.status==='andamento'||t.status==='agendado'){
+      const signBtn=ap(el('button','btn btn-s btn-xs',{whiteSpace:'nowrap',background:'#EDF7F2',borderColor:'#B5DCC9',color:'#2F7D5C'}),'🔗 Enviar p/ assinar')
+      signBtn.onclick=async e=>{
+        e.stopPropagation()
+        const url=window.location.origin+window.location.pathname+'?sign-training='+t.id
+        const msg='Olá! Para confirmar o treinamento realizado, acesse o link abaixo e assine:\n\n📚 '+(t.assunto||'Treinamento')+'\n🧑‍🏫 '+(t.responsavelName||'')+'\n\n🔗 '+url
+        try{await navigator.clipboard.writeText(msg);alert('✓ Link copiado!\n\nCole no WhatsApp ou e-mail do cliente.')}
+        catch{prompt('Copie o link:',msg)}
+      }
+      acts.appendChild(signBtn)
+    }
     const editBtn=ap(el('button','btn btn-s btn-xs'),'✏ Editar');editBtn.onclick=e=>{e.stopPropagation();openTrainingModal(t)}
     acts.appendChild(editBtn)
     if(isA){const delBtn=ap(el('button','btn btn-d btn-xs'),'×');delBtn.onclick=async e=>{e.stopPropagation();if(confirm('Excluir treinamento?'))await deleteDoc(doc(db,'trainings',t.id))};acts.appendChild(delBtn)}
@@ -2169,16 +2294,29 @@ function openTrainingModal(ex=null){
   const x=ap(el('button','modal-x'),'×');x.onclick=()=>ov.remove();mh.appendChild(x)
   const mb=el('div','modal-b')
 
-  // Cliente (do portal)
+  // Cliente (do cadastro de clientes + portal)
   const cg=ap(el('div','form-g'),ap(el('label','form-l'),'Cliente'))
   const cs=el('select','')
-  // Carregar clientes do portal
-  cs.innerHTML='<option value="">— Carregando clientes... —</option>'
-  getDocs(collection(db,'clientPortal')).then(snap=>{
-    const clients=snap.docs.map(d=>d.data())
-    cs.innerHTML='<option value="">— Selecione o cliente —</option>'+clients.map(c=>`<option value="${c.email}">${c.email}${c.phone?' ('+c.phone+')':''}</option>`).join('')+'<option value="__outro__">+ Outro (digitar manualmente)</option>'
-    if(f.clienteEmail)cs.value=f.clienteEmail
-  }).catch(()=>{cs.innerHTML='<option value="">— Erro ao carregar —</option><option value="__outro__">+ Digitar manualmente</option>'})
+  // Combinar clientes do cadastro + portal
+  const allClients=[
+    ...clients.map(c=>({name:c.companyName||c.contactName,email:c.email||'',source:'cadastro',id:c.id})),
+    ...((window._portalClients||[]).filter(p=>!clients.find(c=>c.email===p.email)).map(p=>({name:p.email,email:p.email,source:'portal'})))
+  ]
+  if(allClients.length){
+    cs.innerHTML='<option value="">— Selecione o cliente —</option>'+
+      allClients.map(c=>`<option value="${c.email||c.name}" data-name="${c.name}">${c.name}${c.email?' ('+c.email+')':''}</option>`).join('')+
+      '<option value="__outro__">+ Outro (digitar manualmente)</option>'
+  } else {
+    cs.innerHTML='<option value="">— Carregando clientes... —</option>'
+    getDocs(collection(db,'clientPortal')).then(snap=>{
+      const portal=snap.docs.map(d=>d.data())
+      window._portalClients=portal
+      const list=[...clients.map(c=>({name:c.companyName||c.contactName,email:c.email||''})),...portal.map(p=>({name:p.email,email:p.email}))]
+      cs.innerHTML='<option value="">— Selecione o cliente —</option>'+list.map(c=>`<option value="${c.email||c.name}" data-name="${c.name}">${c.name}${c.email?' ('+c.email+')':''}</option>`).join('')+'<option value="__outro__">+ Outro</option>'
+      if(f.clienteEmail)cs.value=f.clienteEmail
+    })
+  }
+  if(f.clienteEmail)cs.value=f.clienteEmail
   cg.appendChild(cs)
 
   // Campo manual de cliente (oculto)
@@ -2187,7 +2325,12 @@ function openTrainingModal(ex=null){
 
   cs.onchange=e=>{
     if(e.target.value==='__outro__'){manualG.style.display='';f.clienteEmail='';f.clienteName=''}
-    else{manualG.style.display='none';f.clienteEmail=e.target.value;f.clienteName=e.target.value}
+    else{
+      manualG.style.display='none'
+      f.clienteEmail=e.target.value
+      const opt=e.target.selectedOptions[0]
+      f.clienteName=opt?.dataset?.name||e.target.value
+    }
   }
 
   // Assunto
@@ -2234,6 +2377,259 @@ function openTrainingModal(ex=null){
     }catch(e){alert('Erro: '+e.message);sv.disabled=false;sv.textContent=ex?'Salvar':'Criar'}
   }
   ap(mf,can,sv);ap(mo,mh,mb,mf);ov.appendChild(mo);document.body.appendChild(ov)
+}
+
+// ── PORTAL DE ASSINATURA DE TREINAMENTO ───────────────────────
+function checkTrainingSignMode(){
+  const params=new URLSearchParams(window.location.search)
+  return params.get('sign-training')
+}
+
+async function renderTrainingSign(trainingId){
+  const root=document.getElementById('app');root.innerHTML=''
+  const bg=el('div','login-bg',{flexDirection:'column',gap:'14px'})
+  const card=el('div','login-card',{maxWidth:'520px'})
+
+  ap(card,ap(el('div','',{textAlign:'center',marginBottom:'18px'}),
+    ap(el('div','',{width:'48px',height:'48px',borderRadius:'12px',background:'#2F7D5C',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 10px',color:'#fff',fontSize:'24px'}),'✓'),
+    ap(el('h1','',{fontSize:'18px',fontWeight:'700',marginBottom:'4px'}),'Confirmação de Treinamento'),
+    ap(el('p','tc2',{fontSize:'12px'}),APP_NAME)
+  ))
+
+  const content=el('div','',{display:'flex',flexDirection:'column',gap:'10px'})
+  ap(content,ap(el('p','f12 tc2'),'Carregando treinamento...'))
+  card.appendChild(content)
+  ap(bg,card);root.appendChild(bg)
+
+  try{
+    const s=await getDoc(doc(db,'trainings',trainingId))
+    if(!s.exists()){content.innerHTML='';ap(content,ap(el('p','',{color:'var(--red)'}),'Treinamento não encontrado.'));return}
+    const t=s.data()
+    content.innerHTML=''
+
+    // Detalhes do treinamento
+    const det=el('div','',{background:'#F8FAFB',borderRadius:'9px',padding:'14px',border:'1px solid var(--brd)'})
+    ap(det,
+      ap(el('div','f11 fw6 tc3',{marginBottom:'8px',textTransform:'uppercase',letterSpacing:'.5px'}),'Detalhes do treinamento'),
+      ap(el('div','mb6'),ap(el('span','f12 tc2'),'Cliente: '),ap(el('span','fw6 f13'),t.clienteName||'—')),
+      ap(el('div','mb6'),ap(el('span','f12 tc2'),'Assunto: '),ap(el('span','fw6 f13'),t.assunto||'—')),
+      ap(el('div','mb6'),ap(el('span','f12 tc2'),'Responsável: '),ap(el('span','fw6 f13'),t.responsavelName||'—')),
+      ap(el('div','mb6'),ap(el('span','f12 tc2'),'Data realizada: '),ap(el('span','fw6 f13'),t.dataRealizada?new Date(t.dataRealizada+'T00:00').toLocaleDateString('pt-BR'):'—')),
+      ap(el('div',''),ap(el('span','f12 tc2'),'Duração: '),ap(el('span','fw6 f13'),t.duracaoMin?t.duracaoMin+' minutos':'—'))
+    )
+    content.appendChild(det)
+
+    if(t.signedAt){
+      ap(content,
+        ap(el('div','',{padding:'14px',background:'#EDF7F2',border:'1px solid #B5DCC9',borderRadius:'9px',color:'#2F7D5C',textAlign:'center'}),
+          ap(el('div','',{fontSize:'28px',marginBottom:'6px'}),'✓'),
+          ap(el('div','fw6'),'Treinamento confirmado!'),
+          ap(el('div','f12 mt4'),'Assinado por: '+(t.signedByName||'—')),
+          ap(el('div','f11 tc3 mt4'),new Date(t.signedAt).toLocaleString('pt-BR'))
+        )
+      )
+      return
+    }
+
+    // Formulário de assinatura
+    ap(content,ap(el('p','f12 tc2',{lineHeight:'1.6'}),'Confirme que o treinamento foi realizado e está concluído:'))
+
+    const ng=ap(el('div','form-g'),ap(el('label','form-l'),'Seu nome completo *'))
+    const ni=el('input','');ni.placeholder='Como assinatura';ng.appendChild(ni)
+
+    const eg=ap(el('div','form-g'),ap(el('label','form-l'),'Seu e-mail *'))
+    const ei=el('input','');ei.type='email';ei.placeholder='seu@email.com';eg.appendChild(ei)
+
+    const ogf=ap(el('div','form-g'),ap(el('label','form-l'),'Comentário (opcional)'))
+    const oi=el('textarea','',{resize:'vertical'});oi.rows=2;oi.placeholder='Como foi o treinamento? Tem alguma observação?';ogf.appendChild(oi)
+
+    const consentG=el('div','',{background:'#F8FAFB',border:'1px solid var(--brd)',borderRadius:'8px',padding:'10px 12px'})
+    const consentRow=el('div','flex g8',{alignItems:'flex-start'})
+    const cb=el('input','');cb.type='checkbox';cb.style.cssText='width:auto;margin-top:2px;flex-shrink:0'
+    const cTxt=ap(el('label','',{fontSize:'11px',color:'var(--t2)',lineHeight:'1.6',cursor:'pointer'}),'Confirmo que recebi o treinamento descrito acima e estou de acordo com o registro.')
+    ap(consentRow,cb,cTxt);consentG.appendChild(consentRow)
+
+    const err=ap(el('p','',{fontSize:'12px',color:'var(--red)',display:'none'}),'')
+    const sv=ap(el('button','btn btn-p btn-w',{padding:'12px',fontSize:'14px',background:'#2F7D5C'}),'✓ Confirmar treinamento')
+
+    ap(content,ng,eg,ogf,consentG,err,sv)
+
+    sv.onclick=async()=>{
+      if(!ni.value.trim()){err.textContent='Digite seu nome.';err.style.display='block';return}
+      if(!ei.value.includes('@')){err.textContent='Digite um e-mail válido.';err.style.display='block';return}
+      if(!cb.checked){err.textContent='Você precisa concordar para assinar.';err.style.display='block';return}
+      err.style.display='none';sv.disabled=true;sv.textContent='Registrando...'
+      try{
+        await updateDoc(doc(db,'trainings',trainingId),{
+          signedAt:new Date().toISOString(),
+          signedByName:ni.value.trim(),
+          signedByEmail:ei.value.trim(),
+          signedComment:oi.value.trim()||'',
+          status:'concluido'
+        })
+        content.innerHTML=''
+        ap(content,
+          ap(el('div','',{padding:'20px',background:'#EDF7F2',border:'1px solid #B5DCC9',borderRadius:'10px',color:'#2F7D5C',textAlign:'center'}),
+            ap(el('div','',{fontSize:'40px',marginBottom:'8px'}),'✓'),
+            ap(el('div','',{fontWeight:'700',fontSize:'15px',marginBottom:'4px'}),'Treinamento confirmado!'),
+            ap(el('div','f12'),'Obrigado, '+ni.value.trim()+'.')
+          )
+        )
+      }catch(e){err.textContent='Erro: '+e.message;err.style.display='block';sv.disabled=false;sv.textContent='✓ Confirmar treinamento'}
+    }
+  }catch(e){content.innerHTML='';ap(content,ap(el('p','',{color:'var(--red)'}),'Erro: '+e.message))}
+}
+
+// ── RELATÓRIO DE TREINAMENTOS ────────────────────────────────
+function openTrainingReport(){
+  const ov=el('div','overlay',{alignItems:'flex-start',paddingTop:'16px'})
+  const mo=el('div','',{background:'#fff',borderRadius:'14px',width:'100%',maxWidth:'600px',maxHeight:'92vh',overflow:'auto',boxShadow:'0 25px 60px rgba(0,0,0,.3)',margin:'auto'})
+
+  const mh=ap(el('div','modal-h'),ap(el('div','modal-t'),'📊 Relatório de Treinamentos'))
+  const x=ap(el('button','modal-x'),'×');x.onclick=()=>ov.remove();mh.appendChild(x)
+  const mb=el('div','modal-b')
+
+  ap(mb,ap(el('p','f12 tc2 mb12'),'Configure os filtros do relatório:'))
+
+  // Período
+  const r1=el('div','form-row')
+  const dig=ap(el('div','form-g',{marginBottom:'0'}),ap(el('label','form-l'),'Data inicial'))
+  const dii=el('input','');dii.type='date';dig.appendChild(dii)
+  const dfg=ap(el('div','form-g',{marginBottom:'0'}),ap(el('label','form-l'),'Data final'))
+  const dfi=el('input','');dfi.type='date';dfg.appendChild(dfi)
+  ap(r1,dig,dfg);mb.appendChild(r1)
+
+  // Cliente
+  const cg=ap(el('div','form-g'),ap(el('label','form-l'),'Cliente'))
+  const cs=el('select','')
+  const uniqueClients=[...new Set(trainings.map(t=>t.clienteName).filter(Boolean))]
+  cs.innerHTML='<option value="">Todos os clientes</option>'+uniqueClients.map(c=>`<option value="${c}">${c}</option>`).join('')
+  cg.appendChild(cs);mb.appendChild(cg)
+
+  // Colaborador
+  const rg=ap(el('div','form-g'),ap(el('label','form-l'),'Colaborador'))
+  const rs=el('select','')
+  rs.innerHTML='<option value="">Todos os colaboradores</option>'+users.map(u=>`<option value="${u.id}">${u.name}</option>`).join('')
+  rg.appendChild(rs);mb.appendChild(rg)
+
+  // Status
+  const stg=ap(el('div','form-g'),ap(el('label','form-l'),'Status'))
+  const sts=el('select','')
+  sts.innerHTML='<option value="">Todos os status</option>'+Object.entries(TRAIN_ST).map(([k,v])=>`<option value="${k}">${v.l}</option>`).join('')
+  stg.appendChild(sts);mb.appendChild(stg)
+
+  const mf=el('div','modal-f')
+  const can=ap(el('button','btn btn-s'),'Cancelar');can.onclick=()=>ov.remove()
+  const gen=ap(el('button','btn btn-p'),'Gerar relatório')
+  gen.onclick=()=>{
+    const dateFrom=dii.value,dateTo=dfi.value
+    const filterCli=cs.value,filterResp=rs.value,filterSt=sts.value
+
+    let data=trainings.filter(t=>{
+      if(filterCli&&t.clienteName!==filterCli)return false
+      if(filterResp&&t.responsavelId!==filterResp)return false
+      if(filterSt&&t.status!==filterSt)return false
+      if(dateFrom||dateTo){
+        const ref=t.dataRealizada||t.dataAgendada||(t.createdAt?.toDate?.()?.toISOString().slice(0,10))
+        if(!ref)return false
+        if(dateFrom&&ref<dateFrom)return false
+        if(dateTo&&ref>dateTo)return false
+      }
+      return true
+    })
+
+    // Ordenar por data
+    data.sort((a,b)=>(a.dataRealizada||a.dataAgendada||'').localeCompare(b.dataRealizada||b.dataAgendada||''))
+
+    ov.remove()
+    generateTrainingReportPDF(data,{dateFrom,dateTo,filterCli,filterResp:rs.options[rs.selectedIndex]?.text,filterSt})
+  }
+  ap(mf,can,gen);ap(mo,mh,mb,mf);ov.appendChild(mo);document.body.appendChild(ov)
+}
+
+function generateTrainingReportPDF(data,filters){
+  const now=new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'})
+  const totalMin=data.reduce((s,t)=>s+(Number(t.duracaoMin)||0),0)
+  const totalHrs=Math.floor(totalMin/60),totalMm=totalMin%60
+
+  // Agrupar por colaborador
+  const byUser={}
+  data.forEach(t=>{
+    const n=t.responsavelName||'Sem responsável'
+    if(!byUser[n])byUser[n]={total:0,minutos:0,concluidos:0}
+    byUser[n].total++
+    byUser[n].minutos+=Number(t.duracaoMin)||0
+    if(t.status==='concluido')byUser[n].concluidos++
+  })
+
+  const rows=data.map((t,i)=>{
+    const st=TRAIN_ST[t.status]||TRAIN_ST.solicitado
+    return `<tr style="background:${i%2===0?'#fff':'#F8FAFC'}">
+      <td>${t.clienteName||'—'}</td>
+      <td style="font-weight:600">${t.assunto||'—'}</td>
+      <td>${t.responsavelName||'—'}</td>
+      <td><span style="background:${st.bg};color:${st.c};padding:2px 7px;border-radius:4px;font-size:10px;border:1px solid ${st.bd}">${st.l}</span></td>
+      <td style="text-align:center;font-size:10px">${t.dataAgendada?new Date(t.dataAgendada+'T00:00').toLocaleDateString('pt-BR'):'—'}</td>
+      <td style="text-align:center;font-size:10px">${t.dataRealizada?new Date(t.dataRealizada+'T00:00').toLocaleDateString('pt-BR'):'—'}</td>
+      <td style="text-align:center">${t.duracaoMin||'—'}</td>
+      <td style="text-align:center;font-size:11px">${t.signedAt?'✓ '+(t.signedByName||'sim'):'—'}</td>
+    </tr>`
+  }).join('')
+
+  const byUserRows=Object.entries(byUser).map(([n,d])=>`<tr><td>${n}</td><td style="text-align:center">${d.total}</td><td style="text-align:center">${d.concluidos}</td><td style="text-align:center">${Math.floor(d.minutos/60)}h ${d.minutos%60}min</td></tr>`).join('')
+
+  const filtTxt=[
+    filters.dateFrom&&'De '+new Date(filters.dateFrom+'T00:00').toLocaleDateString('pt-BR'),
+    filters.dateTo&&'até '+new Date(filters.dateTo+'T00:00').toLocaleDateString('pt-BR'),
+    filters.filterCli&&'Cliente: '+filters.filterCli,
+    filters.filterResp&&filters.filterResp!=='Todos os colaboradores'&&'Colaborador: '+filters.filterResp,
+    filters.filterSt&&'Status: '+(TRAIN_ST[filters.filterSt]?.l||filters.filterSt)
+  ].filter(Boolean).join(' · ')||'Todos os registros'
+
+  const pw=window.open('','_blank')
+  if(!pw){alert('Permita pop-ups.');return}
+  pw.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"/>
+  <title>Relatório de Treinamentos — ${APP_NAME}</title>
+  <style>
+    @page{size:A4 landscape;margin:1cm}
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Arial,sans-serif;font-size:11px;color:#1C2433;padding:0}
+    h1{font-size:18px;font-weight:700;margin-bottom:3px;color:#1E4E79}
+    .sub{font-size:11px;color:#5A6678;margin-bottom:14px}
+    .filt{font-size:10px;background:#EDF3F8;padding:6px 10px;border-radius:6px;margin-bottom:14px;color:#1E4E79}
+    .stats{display:flex;gap:14px;margin-bottom:18px;flex-wrap:wrap}
+    .stat{background:#F4F6F8;border-left:3px solid #1E4E79;padding:9px 13px;border-radius:6px;min-width:110px}
+    .stat-v{font-size:18px;font-weight:700;color:#1E4E79;line-height:1}
+    .stat-l{font-size:9px;color:#5A6678;text-transform:uppercase;letter-spacing:.4px;margin-top:2px}
+    h2{font-size:13px;font-weight:600;margin:14px 0 8px;color:#1C2433}
+    table{width:100%;border-collapse:collapse;font-size:10px;margin-bottom:14px}
+    th{background:#1C2433;color:#fff;padding:7px 9px;text-align:left;font-weight:600;font-size:10px;text-transform:uppercase}
+    td{padding:6px 9px;border-bottom:1px solid #DDE3EA;vertical-align:top}
+    .footer{margin-top:14px;font-size:9px;color:#94A0B0;text-align:right;border-top:1px solid #DDE3EA;padding-top:6px}
+  </style></head><body>
+  <h1>📊 Relatório de Treinamentos — ${APP_NAME}</h1>
+  <div class="sub">Gerado em ${now} · ${data.length} treinamento${data.length!==1?'s':''}</div>
+  <div class="filt"><strong>Filtros:</strong> ${filtTxt}</div>
+  <div class="stats">
+    <div class="stat"><div class="stat-v">${data.length}</div><div class="stat-l">Total</div></div>
+    <div class="stat"><div class="stat-v">${data.filter(t=>t.status==='concluido').length}</div><div class="stat-l">Concluídos</div></div>
+    <div class="stat"><div class="stat-v">${data.filter(t=>t.status==='solicitado'||t.status==='agendado'||t.status==='andamento').length}</div><div class="stat-l">Pendentes</div></div>
+    <div class="stat"><div class="stat-v">${totalHrs}h ${totalMm}min</div><div class="stat-l">Tempo total</div></div>
+    <div class="stat"><div class="stat-v">${data.filter(t=>t.signedAt).length}</div><div class="stat-l">Assinados</div></div>
+  </div>
+  ${byUserRows?`<h2>👥 Resumo por Colaborador</h2>
+  <table>
+    <thead><tr><th>Colaborador</th><th>Total</th><th>Concluídos</th><th>Tempo</th></tr></thead>
+    <tbody>${byUserRows}</tbody>
+  </table>`:''}
+  <h2>📋 Lista detalhada</h2>
+  <table>
+    <thead><tr><th>Cliente</th><th>Assunto</th><th>Responsável</th><th>Status</th><th>Agendada</th><th>Realizada</th><th>Min.</th><th>Assinado</th></tr></thead>
+    <tbody>${rows||'<tr><td colspan="8" style="text-align:center;padding:20px;color:#94A0B0">Nenhum registro encontrado para os filtros selecionados</td></tr>'}</tbody>
+  </table>
+  <div class="footer">${APP_NAME} · ${now}</div>
+  <script>window.onload=()=>window.print()<\/script></body></html>`)
+  pw.document.close()
 }
 
 function buildPortalPanel(){
@@ -2286,6 +2682,9 @@ function buildPortalPanel(){
 
 // ── AUTH ─────────────────────────────────────────────────────
 onAuthStateChanged(auth,async fu=>{
+  // Modo assinatura de treinamento (cliente externo)
+  const signId=checkTrainingSignMode()
+  if(signId){renderTrainingSign(signId);return}
   // Portal mode: cliente externo
   if(checkPortalMode()){renderPortal();return}
   if(fu){const s=await getDoc(doc(db,'users',fu.uid));if(s.exists()){CU=fu;CP=s.data();await loadBlocks();subscribe();renderApp()}else renderLogin()}

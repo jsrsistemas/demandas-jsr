@@ -440,6 +440,7 @@ const NAV_ITEMS=[
   {id:'notices',i:'📢',l:'Avisos'},
   {id:'updates',i:'🎓',l:'Atualizações'},
   {id:'trainings',i:'🎯',l:'Treinamentos'},
+  {id:'clients',i:'🏢',l:'Clientes'},
   {id:'prospects',i:'💼',l:'Prospects'},
   {id:'portal',i:'🔗',l:'Portal Cliente'},
 ]
@@ -454,7 +455,7 @@ function buildSidebar(){
   const isA=CP?.role==='admin'
   const sb=el('div','sb')
   const logo=el('div','sb-logo')
-  ap(logo,ap(el('div','sb-logo-icon'),'D'),ap(el('div',''),ap(el('div','sb-logo-text'),APP_NAME),ap(el('div','sb-logo-sub'),APP_SUBTITLE+' · v6.9 ✦')))
+  ap(logo,ap(el('div','sb-logo-icon'),'D'),ap(el('div',''),ap(el('div','sb-logo-text'),APP_NAME),ap(el('div','sb-logo-sub'),APP_SUBTITLE+' · v7.0 ✦')))
   sb.appendChild(logo)
   const nav=el('div','sb-nav')
   ap(nav,ap(el('div','sb-sec'),'Menu'))

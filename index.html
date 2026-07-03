@@ -141,13 +141,13 @@ input:focus,select:focus,textarea:focus{border-color:var(--blue);box-shadow:0 0 
 .notice-h{padding:14px 16px 10px;display:flex;align-items:flex-start;gap:10px}
 .notice-b{padding:0 16px 14px}
 
-.updates-wrap{overflow-y:auto;overflow-x:scroll;max-height:calc(100vh - 210px);border-radius:var(--r) var(--r) 0 0;border:1px solid var(--brd);border-bottom:none;background:var(--card);box-shadow:var(--sh);scrollbar-width:none}
-.updates-wrap::-webkit-scrollbar{width:12px;height:0px}
-.updates-wrap::-webkit-scrollbar-track{background:#E2E8F0}
-.updates-wrap::-webkit-scrollbar-thumb{background:#64748B;border-radius:6px;border:3px solid #E2E8F0}
-.updates-wrap::-webkit-scrollbar-thumb:hover{background:#334155}
-.updates-wrap::-webkit-scrollbar-corner{background:#E2E8F0}
-.updates-wrap table{min-width:2200px;table-layout:fixed}
+.updates-wrap{overflow-y:auto;overflow-x:auto;max-height:calc(100vh - 240px);border-radius:var(--r);border:1px solid var(--brd);background:var(--card);box-shadow:var(--sh);-webkit-overflow-scrolling:touch;scrollbar-width:auto;scrollbar-color:#94A0B0 #F1F5F9}
+.updates-wrap::-webkit-scrollbar{width:14px;height:14px;-webkit-appearance:none;display:block}
+.updates-wrap::-webkit-scrollbar-track{background:#F1F5F9;border-radius:7px}
+.updates-wrap::-webkit-scrollbar-thumb{background:#94A0B0;border-radius:7px;border:2px solid #F1F5F9}
+.updates-wrap::-webkit-scrollbar-thumb:hover{background:#5A6678}
+.updates-wrap::-webkit-scrollbar-corner{background:#F1F5F9}
+.updates-wrap table{min-width:1900px;table-layout:fixed}
 .sort-th{cursor:pointer;user-select:none;transition:background .15s}
 .sort-th:hover{background:#EDF3F8!important}
 .sort-arrow{margin-left:4px;color:var(--t3);font-size:10px}
@@ -304,7 +304,9 @@ const fb=initializeApp(fcfg);const auth=getAuth(fb);const db=getFirestore(fb);co
 
 // ── ESTADO ──────────────────────────────────────────────────
 let CU=null,CP=null,sec='demands',unsubs=[]
-let demands=[],notices=[],prospects=[],users=[],updates=[],trainings=[],clients=[]
+let updatesTab='publications' // 'publications' or 'portal'
+let showArchivedNotices=false
+let demands=[],notices=[],prospects=[],users=[],updates=[],trainings=[],clients=[],companies=[],companyUsers=[]
 let demTab='internal',selDem=null,demPane=null
 let pomoOpen=false,pomoInt=null
 let PS={mode:'work',on:false,secs:25*60,sess:0,hist:[],cfg:{work:25,short:5,long:15}}
@@ -440,9 +442,8 @@ const NAV_ITEMS=[
   {id:'notices',i:'📢',l:'Avisos'},
   {id:'updates',i:'🎓',l:'Atualizações'},
   {id:'trainings',i:'🎯',l:'Treinamentos'},
-  {id:'clients',i:'🏢',l:'Clientes'},
+  {id:'companies',i:'🏢',l:'Empresas'},
   {id:'prospects',i:'💼',l:'Prospects'},
-  {id:'portal',i:'🔗',l:'Portal Cliente'},
 ]
 function getBadge(id){
   if(id==='demands')return demands.filter(d=>d.status==='open').length||0
@@ -455,7 +456,7 @@ function buildSidebar(){
   const isA=CP?.role==='admin'
   const sb=el('div','sb')
   const logo=el('div','sb-logo')
-  ap(logo,ap(el('div','sb-logo-icon'),'D'),ap(el('div',''),ap(el('div','sb-logo-text'),APP_NAME),ap(el('div','sb-logo-sub'),APP_SUBTITLE+' · v7.0 ✦')))
+  ap(logo,ap(el('div','sb-logo-icon'),'D'),ap(el('div',''),ap(el('div','sb-logo-text'),APP_NAME),ap(el('div','sb-logo-sub'),APP_SUBTITLE+' · v7.1 ✦')))
   sb.appendChild(logo)
   const nav=el('div','sb-nav')
   ap(nav,ap(el('div','sb-sec'),'Menu'))
@@ -537,28 +538,49 @@ function buildPomoPanel(){
 // ── DEMANDAS ─────────────────────────────────────────────────
 function buildDemands(){
   const isA=CP?.role==='admin'
-  const wrap=el('div','dem-wrap')
-  const left=el('div','dem-left')
-  // stats
-  const stats=el('div','dem-s')
-  ;[{v:demands.filter(d=>d.status==='open').length,...DS.open,l:'Abertas'},{v:demands.filter(d=>d.status==='in_progress').length,...DS.in_progress,l:'Andamento'},{v:demands.filter(d=>d.status==='resolved').length,...DS.resolved,l:'Resolvidas'}].forEach(s=>{
-    ap(stats,ap(el('div','dem-sc',{background:s.bg,border:`1px solid ${s.bd}`}),ap(el('div','dem-sv',{color:s.c}),String(s.v)),ap(el('div','dem-sl',{color:s.c}),s.l)))
-  });left.appendChild(stats)
-  // tabs
-  const tabs=el('div','dem-tabs')
+  const wrap=el('div','',{display:'flex',flexDirection:'column',height:'calc(100vh - 56px)'})
+
+  // Tira compacta no topo
+  const topBar=el('div','',{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 16px',background:'#F8FAFB',borderBottom:'1px solid var(--brd)',gap:'12px',flexWrap:'wrap'})
+  const stats=el('div','flex g14',{flexWrap:'wrap'})
+  ;[
+    {v:demands.filter(d=>d.status==='open').length,l:'Abertas',...DS.open},
+    {v:demands.filter(d=>d.status==='in_progress').length,l:'Em andamento',...DS.in_progress},
+    {v:demands.filter(d=>d.status==='resolved').length,l:'Resolvidas',...DS.resolved},
+  ].forEach(s=>{
+    ap(stats,ap(el('div','flex aic g6'),ap(el('span','',{background:s.c,color:'#fff',padding:'2px 8px',borderRadius:'20px',fontSize:'12px',fontWeight:'700',minWidth:'26px',textAlign:'center'}),String(s.v)),ap(el('span','f11 fw6 tc2'),s.l)))
+  })
+  topBar.appendChild(stats)
+  const nb=ap(el('button','btn btn-p btn-sm'),'+ Nova demanda')
+  nb.onclick=()=>{demPane='new';selDem=null;updDemList();updDemRight()}
+  topBar.appendChild(nb)
+  wrap.appendChild(topBar)
+
+  // Container principal
+  const mainWrap=el('div','',{display:'flex',flex:'1',overflow:'hidden'})
+  const left=el('div','',{width:'380px',flexShrink:'0',background:'var(--card)',borderRight:'1px solid var(--brd)',display:'flex',flexDirection:'column'})
+
+  // Tabs
+  const tabs=el('div','',{display:'flex',gap:'4px',padding:'10px 12px',borderBottom:'1px solid var(--brd)'})
   const tabDefs=[{id:'internal',l:'Internas'},{id:'private',l:'Minhas'},...(isA?[{id:'restricted',l:'Restritas'}]:[])];
   tabDefs.forEach(t=>{
     const tc=DT[t.id];const cnt=t.id==='private'?demands.filter(d=>d.type==='private'&&d.createdBy===CU.uid).length:demands.filter(d=>d.type===t.id).length
     const on=demTab===t.id
-    const tb=ap(el('button','dem-tab'+(on?' on':''),{borderColor:on?tc.c:'var(--brd)',background:on?tc.bg:'transparent',color:on?tc.c:'var(--t2)'}),tc.i+' '+t.l,ap(el('span','',{fontSize:'10px',background:'rgba(0,0,0,.07)',padding:'1px 4px',borderRadius:'8px',marginLeft:'3px'}),String(cnt)))
+    const tb=ap(el('button','dem-tab'+(on?' on':''),{borderColor:on?tc.c:'var(--brd)',background:on?tc.bg:'transparent',color:on?tc.c:'var(--t2)'}),tc.i+' '+t.l,ap(el('span','',{fontSize:'10px',background:'rgba(0,0,0,.07)',padding:'1px 5px',borderRadius:'8px',marginLeft:'3px'}),String(cnt)))
     tb.onclick=()=>{demTab=t.id;selDem=null;demPane=null;updDemList();updDemRight()};tabs.appendChild(tb)
-  });left.appendChild(tabs)
-  // search
-  const sr=el('div','dem-search');const si=el('input','',{fontSize:'12px'});si.placeholder='Buscar...';let sv=''
+  })
+  left.appendChild(tabs)
+
+  // Search
+  const sr=el('div','flex g8',{padding:'10px 12px',borderBottom:'1px solid var(--brd)'})
+  const si=el('input','',{fontSize:'12px',flex:'1'});si.placeholder='🔍 Buscar demandas...'
+  let sv=''
   si.oninput=e=>{sv=e.target.value;updDemList()}
-  const nb=ap(el('button','btn btn-p btn-sm'),'+ Nova');nb.onclick=()=>{demPane='new';selDem=null;updDemList();updDemRight()}
-  ap(sr,si,nb);left.appendChild(sr)
-  const list=el('div','dem-list');left.appendChild(list)
+  sr.appendChild(si);left.appendChild(sr)
+
+  const list=el('div','',{flex:'1',overflowY:'auto'})
+  left.appendChild(list)
+
   function getVis(){return demands.filter(d=>{
     if(demTab==='internal'&&d.type!=='internal')return false
     if(demTab==='private'&&(d.type!=='private'||d.createdBy!==CU.uid))return false
@@ -566,9 +588,10 @@ function buildDemands(){
     if(sv){const q=sv.toLowerCase();return d.title.toLowerCase().includes(q)||d.description?.toLowerCase().includes(q)}
     return true
   })}
+
   function updDemList(){
     list.innerHTML='';const vis=getVis()
-    if(!vis.length){ap(list,ap(el('div','empty',{padding:'20px 0'}),ap(el('div','empty-s'),'Nenhuma demanda.')));return}
+    if(!vis.length){ap(list,ap(el('div','',{padding:'40px 20px',textAlign:'center',color:'var(--t3)'}),ap(el('div','',{fontSize:'32px',marginBottom:'8px'}),'📋'),ap(el('div','f12'),'Nenhuma demanda nesta aba.')));return}
     vis.forEach(d=>{
       const tc=DT[d.type];const sc=DS[d.status];const pc=DP[d.priority];const isSel=selDem?.id===d.id
       const item=el('div','dem-item'+(isSel?' sel':''),{borderLeftColor:isSel?tc.c:'transparent'})
@@ -576,28 +599,30 @@ function buildDemands(){
       item.onclick=()=>{selDem=d;demPane='detail';updDemList();updDemRight()};list.appendChild(item)
     })
   }
-  const right=el('div','dem-right');right.id='dem-right'
+
+  const right=el('div','',{flex:'1',overflowY:'auto',background:'var(--bg)'})
+
   function updDemRight(){
     right.innerHTML=''
-    if(!demPane){
-      const hp=el('div','detail')
-      ap(hp,ap(el('h2','mb16',{fontSize:'16px',fontWeight:'700'}),'Visão geral'))
-      const sg=el('div','stats-g stats-3 mb20')
-      ;[{v:demands.filter(d=>d.type==='internal').length,l:'Internas',c:'var(--blue)'},{v:demands.filter(d=>d.type==='private'&&d.createdBy===CU.uid).length,l:'Minhas privadas',c:'var(--purple)'},{v:demands.filter(d=>d.status==='resolved').length,l:'Resolvidas',c:'var(--green)'}].forEach((s,i)=>{
-        const cs=[['#3D6E9E','#EDF3F8'],['#5B4B8A','#F2F0F8'],['#2F7D5C','#EDF7F2']][i]
-        ap(sg,ap(el('div','stat-c',{borderLeftColor:cs[0],background:cs[1]}),ap(el('div','stat-v',{color:cs[0]}),String(s.v)),ap(el('div','stat-l'),s.l)))
-      });hp.appendChild(sg)
-      const rec=demands.slice(0,5);if(rec.length){
-        const rc=el('div','card');ap(rc,ap(el('div','card-h'),ap(el('div','card-t'),'Atividade recente')))
-        const rb=el('div','');rec.forEach(d=>{const tc=DT[d.type];const sc=DS[d.status];const ri=ap(el('div','flex aic g12',{padding:'11px 16px',borderBottom:'1px solid var(--brd)',cursor:'pointer'}),ap(el('div','',{width:'3px',height:'32px',borderRadius:'3px',background:tc.c,flexShrink:'0'})),ap(el('div','',{flex:'1',overflow:'hidden'}),ap(el('div','fw6 trunc f13'),d.title),ap(el('div','f11 tc3 mt4'),d.createdByName+' · '+ago(d.createdAt))),tag_({c:sc.c,bg:sc.bg,bd:sc.bd},sc.l));ri.onclick=()=>{selDem=d;demTab=d.type==='private'?'private':d.type==='restricted'?'restricted':'internal';demPane='detail';updDemList();updDemRight()};rb.appendChild(ri)});rc.appendChild(rb);hp.appendChild(rc)
-      }
-      right.appendChild(hp)
-    } else if(demPane==='new'){right.appendChild(buildNewDemForm(()=>{demPane=null;updDemRight()},d=>{selDem=d;demTab=d.type==='private'?'private':d.type==='restricted'?'restricted':'internal';demPane='detail';updDemList();updDemRight()}))}
-    else if(demPane==='detail'&&selDem){const live=demands.find(d=>d.id===selDem.id)||selDem;right.appendChild(buildDemDetail(live,()=>{demPane=null;selDem=null;updDemList();updDemRight()},()=>updDemList()))}
+    if(!demPane||demPane==='overview'){
+      // Estado vazio simples
+      const empty=el('div','',{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'100%',color:'var(--t3)',padding:'40px'})
+      ap(empty,
+        ap(el('div','',{fontSize:'48px',marginBottom:'12px',opacity:'.4'}),'📋'),
+        ap(el('div','',{fontSize:'14px',fontWeight:'500',color:'var(--t2)',marginBottom:'4px'}),'Selecione uma demanda'),
+        ap(el('div','f12'),'Clique em uma demanda na lista à esquerda para ver os detalhes.')
+      )
+      right.appendChild(empty)
+    } else if(demPane==='new'){
+      right.appendChild(buildNewDemForm(()=>{demPane=null;updDemRight()},d=>{selDem=d;demTab=d.type==='private'?'private':d.type==='restricted'?'restricted':'internal';demPane='detail';updDemList();updDemRight()}))
+    } else if(demPane==='detail'&&selDem){
+      const live=demands.find(d=>d.id===selDem.id)||selDem;right.appendChild(buildDemDetail(live,()=>{demPane=null;selDem=null;updDemList();updDemRight()},()=>updDemList()))
+    }
   }
-  updDemList();updDemRight();ap(wrap,left,right);return wrap
-}
 
+  updDemList();updDemRight()
+  ap(mainWrap,left,right);wrap.appendChild(mainWrap);return wrap
+}
 function buildNewDemForm(onCancel,onCreated){
   const isA=CP?.role==='admin';let f={title:'',description:'',type:'internal',priority:'medium'}
   const w=el('div','detail')
@@ -656,27 +681,41 @@ function buildDemDetail(demand,onClose,onChange){
 function buildNotices(){
   const isA=CP?.role==='admin'
   const w=el('div','page')
-  const h=ap(el('div','flex aic jcsb mb20'),ap(el('h2','',{fontSize:'16px',fontWeight:'700'}),'Avisos da empresa'))
-  if(isA){const nb=ap(el('button','btn btn-p btn-sm'),'+ Novo aviso');nb.onclick=openNoticeModal;h.appendChild(nb)}
-  w.appendChild(h)
-  if(!notices.length){ap(w,ap(el('div','empty'),ap(el('div','empty-ic'),'📢'),ap(el('div','empty-t'),'Nenhum aviso'),ap(el('div','empty-s'),'Aguardando publicação.')));return w}
+  const h=ap(el('div','flex aic jcsb mb16'),ap(el('h2','',{fontSize:'16px',fontWeight:'700'}),showArchivedNotices?'Avisos arquivados':'Avisos da empresa'))
+  const btns=el('div','flex g8')
+  const activeNotices=notices.filter(n=>!n.archived)
+  const archivedNotices=notices.filter(n=>n.archived)
+  const toggleBtn=ap(el('button','btn btn-s btn-sm'),showArchivedNotices?'← Voltar aos ativos':'📥 Ver arquivados ('+archivedNotices.length+')')
+  toggleBtn.onclick=()=>{showArchivedNotices=!showArchivedNotices;renderSection()}
+  btns.appendChild(toggleBtn)
+  if(isA&&!showArchivedNotices){const nb=ap(el('button','btn btn-p btn-sm'),'+ Novo aviso');nb.onclick=openNoticeModal;btns.appendChild(nb)}
+  h.appendChild(btns);w.appendChild(h)
+
+  const list=showArchivedNotices?archivedNotices:activeNotices
+  if(!list.length){ap(w,ap(el('div','empty'),ap(el('div','empty-ic'),'📢'),ap(el('div','empty-t'),showArchivedNotices?'Nenhum aviso arquivado':'Nenhum aviso'),ap(el('div','empty-s'),showArchivedNotices?'Avisos arquivados aparecem aqui.':'Aguardando publicação.')));return w}
+
   const g=el('div','notices-g')
-  notices.forEach(n=>{
+  list.forEach(n=>{
     const np=NP[n.priority||'info'];const unread=!n.readBy?.includes(CU.uid)
-    const nc=el('div','notice-c',{borderTopColor:np.top})
+    const nc=el('div','notice-c',{borderTopColor:np.top,opacity:n.archived?'.7':'1'})
     const nh=el('div','notice-h')
-    const nl=ap(el('div','',{flex:'1'}),ap(el('div','flex g6 aic mb6'),tag_({c:np.c,bg:np.bg,bd:np.bd},np.l),...(unread?[ap(el('span','tag',{background:'var(--blue)',color:'#fff',borderColor:'var(--blue)'}),'Novo')]:[])),ap(el('h3','',{fontSize:'14px',fontWeight:'600',lineHeight:'1.4'}),n.title))
+    const nl=ap(el('div','',{flex:'1'}),ap(el('div','flex g6 aic mb6'),tag_({c:np.c,bg:np.bg,bd:np.bd},np.l),...(unread&&!n.archived?[ap(el('span','tag',{background:'var(--blue)',color:'#fff',borderColor:'var(--blue)'}),'Novo')]:[]),...(n.archived?[ap(el('span','tag',{background:'#F4F6F8',color:'#5A6678',borderColor:'#DDE3EA'}),'📥 Arquivado')]:[])),ap(el('h3','',{fontSize:'14px',fontWeight:'600',lineHeight:'1.4'}),n.title))
     ap(nh,nl,ap(el('span','f11 tc3',{flexShrink:'0'}),ago(n.createdAt)));nc.appendChild(nh)
     const nb2=el('div','notice-b')
     ap(nb2,ap(el('p','',{fontSize:'13px',color:'var(--t2)',lineHeight:'1.7',marginBottom:'12px'}),n.content))
-    const nf=ap(el('div','flex aic jcsb',{flexWrap:'wrap',gap:'8px'}),ap(el('span','f11 tc3'),'Por '+n.createdByName))
+    const nf=ap(el('div','flex aic jcsb',{flexWrap:'wrap',gap:'8px'}),ap(el('span','f11 tc3'),'Por '+n.createdByName+(n.archived?' · Arquivado por '+(n.archivedByName||'-')+' em '+(n.archivedAt?new Date(n.archivedAt).toLocaleDateString('pt-BR'):''):'')))
     const acts=el('div','flex g6')
-    if(unread){const rb=ap(el('button','btn btn-g btn-sm'),'✓ Marcar como lido');rb.onclick=async()=>{await updateDoc(doc(db,'notices',n.id),{readBy:arrayUnion(CU.uid)})};acts.appendChild(rb)}
-    if(isA){const db2=ap(el('button','btn btn-d btn-sm'),'Excluir');db2.onclick=async()=>{if(confirm('Excluir?'))await deleteDoc(doc(db,'notices',n.id))};acts.appendChild(db2)}
+    if(unread&&!n.archived){const rb=ap(el('button','btn btn-g btn-sm'),'✓ Marcar como lido');rb.onclick=async()=>{await updateDoc(doc(db,'notices',n.id),{readBy:arrayUnion(CU.uid)})};acts.appendChild(rb)}
+    if(isA){
+      if(n.archived){const un=ap(el('button','btn btn-s btn-sm'),'↩ Desarquivar');un.onclick=async()=>{await updateDoc(doc(db,'notices',n.id),{archived:false,archivedAt:null,archivedBy:null,archivedByName:null})};acts.appendChild(un)}
+      else{const ar=ap(el('button','btn btn-s btn-sm'),'📥 Arquivar');ar.onclick=async()=>{if(confirm('Arquivar este aviso?'))await updateDoc(doc(db,'notices',n.id),{archived:true,archivedAt:new Date().toISOString(),archivedBy:CU.uid,archivedByName:CP.name})};acts.appendChild(ar)}
+      const db2=ap(el('button','btn btn-d btn-sm'),'Excluir');db2.onclick=async()=>{if(confirm('Excluir definitivamente?'))await deleteDoc(doc(db,'notices',n.id))};acts.appendChild(db2)
+    }
     ap(nf,acts);nb2.appendChild(nf);nc.appendChild(nb2);g.appendChild(nc)
   })
   w.appendChild(g);return w
 }
+
 function openNoticeModal(){
   let f={title:'',content:'',priority:'info'};const ov=el('div','overlay')
   const mo=el('div','modal')
@@ -699,26 +738,44 @@ function buildUpdates(){
   const isA=CP?.role==='admin'
   const w=el('div','page')
 
-  // Header
-  const h=el('div','flex aic jcsb mb12')
-  ap(h,ap(el('h2','',{fontSize:'16px',fontWeight:'700'}),'Atualizações do Sistema'))
+  // Sub-tabs (Publicações | Portal Cliente)
+  const subTabs=el('div','flex g4 mb14',{borderBottom:'2px solid var(--brd)',paddingBottom:'0'})
+  const mkSubTab=(id,l,ic)=>{
+    const on=updatesTab===id
+    const t=ap(el('button','',{background:'transparent',border:'none',padding:'8px 16px 10px',cursor:'pointer',color:on?'var(--blue)':'var(--t2)',fontWeight:on?'600':'500',fontSize:'13px',borderBottom:on?'2px solid var(--blue)':'2px solid transparent',marginBottom:'-2px',fontFamily:'inherit'}),ic+' '+l)
+    t.onclick=()=>{updatesTab=id;renderSection()}
+    return t
+  }
+  ap(subTabs,mkSubTab('publications','Publicações','📝'),mkSubTab('portal','Portal do Cliente','🔗'))
+  w.appendChild(subTabs)
+
+  if(updatesTab==='portal'){
+    w.appendChild(buildPortalPanelInner())
+    return w
+  }
+
+  // Header (só na aba Publicações)
+  const h=el('div','flex aic jcsb mb12',{flexWrap:'wrap',gap:'8px'})
+  const hLeft=el('div','flex aic g10')
   if(isA){
-    const btns=el('div','flex g8',{flexWrap:'wrap'})
-    const addBtn=ap(el('button','btn btn-p btn-sm'),'+ Adicionar linha')
+    const btns=el('div','flex g6',{flexWrap:'wrap'})
+    const addBtn=ap(el('button','btn btn-p btn-sm'),'+ Adicionar')
     addBtn.onclick=()=>addInlineRow()
     const blockBtn=ap(el('button','btn btn-s btn-sm'),'📦 Blocos')
     blockBtn.onclick=()=>openBlockManager()
     const printBtn=ap(el('button','btn btn-s btn-sm'),'🖨️ Imprimir')
     printBtn.onclick=()=>printUpdates()
-    const linkBtn=ap(el('button','btn btn-s btn-sm'),'🔗 Gerar link portal')
+    const linkBtn=ap(el('button','btn btn-s btn-sm'),'🔗 Link portal')
     linkBtn.onclick=()=>openLinkGenerator()
     const expBtn=ap(el('button','btn btn-s btn-sm'),'📥 Exportar');expBtn.onclick=exportUpdateTemplate
     const impLabel=el('label','btn btn-s btn-sm',{cursor:'pointer'});impLabel.textContent='📤 Importar'
     const impInput=el('input','');impInput.type='file';impInput.accept='.xlsx,.xls';impInput.style.display='none'
     impInput.onchange=e=>{if(e.target.files[0])importUpdateFile(e.target.files[0]);impInput.value=''}
     impLabel.appendChild(impInput)
-    ap(btns,addBtn,blockBtn,printBtn,linkBtn,expBtn,impLabel);h.appendChild(btns)
+    ap(btns,addBtn,blockBtn,printBtn,linkBtn,expBtn,impLabel);hLeft.appendChild(btns)
   }
+  h.appendChild(hLeft)
+
   w.appendChild(h)
 
   // ── Barra de controles compacta com filtros colapsáveis ─────────────────
@@ -823,54 +880,7 @@ function buildUpdates(){
 
   const tblWrap=el('div','updates-wrap')
 
-  // ── BARRA DE NAVEGAÇÃO HORIZONTAL — grande e sempre visível ───────────────
-  const rangeWrap=el('div','',{
-    display:'flex',alignItems:'center',gap:'10px',
-    padding:'10px 14px',background:'#1C2433',
-    borderRadius:'0 0 var(--r) var(--r)',
-    border:'1px solid var(--brd)',borderTop:'none'
-  })
-  const btnL=el('button','',{
-    width:'42px',height:'34px',borderRadius:'8px',border:'none',cursor:'pointer',
-    background:'#2E3A4F',color:'#fff',fontSize:'16px',fontWeight:'700',flexShrink:'0',
-    display:'flex',alignItems:'center',justifyContent:'center',transition:'background .15s'
-  })
-  btnL.textContent='◀'
-  btnL.onmouseenter=()=>btnL.style.background='#3D4D68'
-  btnL.onmouseleave=()=>btnL.style.background='#2E3A4F'
-  btnL.onclick=()=>tblWrap.scrollBy({left:-400,behavior:'smooth'})
-
-  const btnR=el('button','',{
-    width:'42px',height:'34px',borderRadius:'8px',border:'none',cursor:'pointer',
-    background:'#2E3A4F',color:'#fff',fontSize:'16px',fontWeight:'700',flexShrink:'0',
-    display:'flex',alignItems:'center',justifyContent:'center',transition:'background .15s'
-  })
-  btnR.textContent='▶'
-  btnR.onmouseenter=()=>btnR.style.background='#3D4D68'
-  btnR.onmouseleave=()=>btnR.style.background='#2E3A4F'
-  btnR.onclick=()=>tblWrap.scrollBy({left:400,behavior:'smooth'})
-
-  const rangeInput=el('input','')
-  rangeInput.type='range';rangeInput.min='0';rangeInput.max='1000';rangeInput.value='0'
-  Object.assign(rangeInput.style,{flex:'1',margin:'0',height:'26px',cursor:'pointer',accentColor:'#5B8DC9'})
-
-  ap(rangeWrap,btnL,rangeInput,btnR)
-
-  let syncingRange=false
-  rangeInput.oninput=()=>{
-    if(syncingRange)return
-    const pct=rangeInput.value/1000
-    tblWrap.scrollLeft=pct*(tblWrap.scrollWidth-tblWrap.clientWidth)
-  }
-  tblWrap.addEventListener('scroll',()=>{
-    if(tblWrap.scrollWidth<=tblWrap.clientWidth)return
-    syncingRange=true
-    rangeInput.value=Math.round(tblWrap.scrollLeft/(tblWrap.scrollWidth-tblWrap.clientWidth)*1000)
-    syncingRange=false
-  })
-
   function updateThumb(){}
-  const fakeScrollOuter=rangeWrap
   const tbl=el('table','',{width:'100%',borderCollapse:'collapse',fontSize:'13px',minWidth:'1200px'})
   const thead=el('thead','',{position:'sticky',top:'0',zIndex:'5'})
 
@@ -923,7 +933,6 @@ function buildUpdates(){
   tbl.appendChild(tbody)
   tblWrap.appendChild(tbl)
   w.appendChild(tblWrap)
-  w.appendChild(fakeScrollOuter) // barra de scroll sempre visível
 
 
   function renderRows(tb){
@@ -1803,7 +1812,7 @@ function renderSection(){
   else if(sec==='prospects')mc.appendChild(buildProspects())
   else if(sec==='users')mc.appendChild(buildUsers())
   else if(sec==='trainings')mc.appendChild(buildTrainings())
-  else if(sec==='clients')mc.appendChild(buildClients())
+  else if(sec==='companies')mc.appendChild(buildCompanies())
   else if(sec==='portal')mc.appendChild(buildPortalPanel())
 }
 function renderApp(){
@@ -1833,7 +1842,9 @@ function subscribe(){
   unsubs.push(onSnapshot(query(collection(db,'updates'),orderBy('createdAt','desc')),snap=>{updates=snap.docs.map(d=>({id:d.id,...d.data()}));if(sec==='updates')renderSection();else updBadges()}))
   unsubs.push(onSnapshot(query(collection(db,'prospects'),orderBy('createdAt','desc')),snap=>{prospects=snap.docs.map(d=>({id:d.id,...d.data()}));if(sec==='prospects')renderSection();else updBadges()}))
   unsubs.push(onSnapshot(query(collection(db,'trainings'),orderBy('createdAt','desc')),snap=>{trainings=snap.docs.map(d=>({id:d.id,...d.data()}));if(sec==='trainings')renderSection();else updBadges()}))
-  unsubs.push(onSnapshot(query(collection(db,'clients'),orderBy('createdAt','desc')),snap=>{clients=snap.docs.map(d=>({id:d.id,...d.data()}));if(sec==='clients')renderSection();else updBadges()}))
+  unsubs.push(onSnapshot(query(collection(db,'clients'),orderBy('createdAt','desc')),snap=>{clients=snap.docs.map(d=>({id:d.id,...d.data()}));if(sec==='companies')renderSection();else updBadges()}))
+  unsubs.push(onSnapshot(query(collection(db,'companies'),orderBy('createdAt','desc')),snap=>{companies=snap.docs.map(d=>({id:d.id,...d.data()}));if(sec==='companies')renderSection();else updBadges()}))
+  unsubs.push(onSnapshot(query(collection(db,'companyUsers'),orderBy('createdAt','desc')),snap=>{companyUsers=snap.docs.map(d=>({id:d.id,...d.data()}))}))
   getDocs(collection(db,'users')).then(s=>{users=s.docs.map(d=>({id:d.id,...d.data()}))})
 }
 
@@ -2170,6 +2181,207 @@ function openClientModal(ex=null){
   ap(mf,can,sv);ap(mo,mh,mb,mf);ov.appendChild(mo);document.body.appendChild(ov)
 }
 
+// ── EMPRESAS + USUÁRIOS DA EMPRESA ─────────────────────────────
+let selectedCompanyId=null
+
+function buildCompanies(){
+  const isA=CP?.role==='admin'
+  const w=el('div','page')
+
+  const h=el('div','flex aic jcsb mb16')
+  ap(h,ap(el('h2','',{fontSize:'16px',fontWeight:'700'}),'Empresas cadastradas'))
+  const nb=ap(el('button','btn btn-p btn-sm'),'+ Nova empresa');nb.onclick=()=>openCompanyModal()
+  h.appendChild(nb);w.appendChild(h)
+
+  // Buscar
+  const sb=el('div','flex g8 mb12')
+  const si=el('input','',{flex:'1',fontSize:'13px'})
+  si.placeholder='🔍 Buscar por nome, CNPJ, e-mail...'
+  let sq=''
+  si.oninput=e=>{sq=e.target.value.toLowerCase();render()}
+  sb.appendChild(si);w.appendChild(sb)
+
+  const listWrap=el('div','')
+  w.appendChild(listWrap)
+
+  function render(){
+    listWrap.innerHTML=''
+    // Merge de empresas novas + clientes antigos (compatibilidade)
+    const allCompanies=[...companies,...clients.filter(c=>!companies.find(co=>co.id===c.id))]
+    const filtered=allCompanies.filter(c=>{
+      if(!sq)return true
+      const s=((c.name||c.companyName||c.contactName||'')+(c.document||'')+(c.email||'')+(c.phone||'')).toLowerCase()
+      return s.includes(sq)
+    })
+    if(!filtered.length){
+      ap(listWrap,ap(el('div','empty'),ap(el('div','empty-ic'),'🏢'),ap(el('div','empty-t'),sq?'Nenhuma empresa encontrada':'Nenhuma empresa cadastrada'),ap(el('div','empty-s'),'Cadastre a primeira empresa para começar.')))
+      return
+    }
+    const card=el('div','card')
+    const body=el('div','')
+    filtered.forEach(c=>{
+      const name=c.name||c.companyName||c.contactName||'Sem nome'
+      const usersCount=companyUsers.filter(u=>u.companyId===c.id).length
+      const row=el('div','',{padding:'14px 18px',borderBottom:'1px solid var(--brd)',display:'flex',gap:'14px',alignItems:'center',cursor:'pointer',transition:'background .15s'})
+      row.onmouseenter=()=>row.style.background='#F8FAFB';row.onmouseleave=()=>row.style.background='transparent'
+
+      const avt=av(name,40)
+      const main=el('div','',{flex:'1',minWidth:'0'})
+      ap(main,ap(el('div','fw6 f13 mb4'),name))
+      const meta=el('div','flex g12',{flexWrap:'wrap'})
+      if(c.document)ap(meta,ap(el('span','f11 tc2'),'📄 '+c.document))
+      if(c.email)ap(meta,ap(el('span','f11 tc2'),'✉ '+c.email))
+      if(c.phone)ap(meta,ap(el('span','f11 tc2'),'📱 '+c.phone))
+      ap(meta,ap(el('span','f11 tc2',{color:'var(--blue)'}),'👥 '+usersCount+' contato'+(usersCount!==1?'s':'')))
+      main.appendChild(meta)
+      if(c.address)ap(main,ap(el('p','f11 tc3',{marginTop:'4px'}),'📍 '+c.address))
+
+      const acts=el('div','flex g6',{flexShrink:'0'})
+      const openBtn=ap(el('button','btn btn-p btn-xs'),'Abrir');openBtn.onclick=e=>{e.stopPropagation();openCompanyDetail(c)}
+      acts.appendChild(openBtn)
+      if(isA){const del=ap(el('button','btn btn-d btn-xs'),'×');del.onclick=async e=>{e.stopPropagation();if(confirm('Excluir empresa '+name+'?')){try{await deleteDoc(doc(db,'companies',c.id))}catch{await deleteDoc(doc(db,'clients',c.id))}}};acts.appendChild(del)}
+
+      row.onclick=()=>openCompanyDetail(c)
+      ap(row,avt,main,acts);body.appendChild(row)
+    })
+    card.appendChild(body);listWrap.appendChild(card)
+  }
+  render()
+  return w
+}
+
+function openCompanyModal(ex=null){
+  let f=ex?{...ex,name:ex.name||ex.companyName||ex.contactName||''}:{name:'',document:'',email:'',phone:'',address:'',notes:''}
+  const ov=el('div','overlay');const mo=el('div','modal',{maxWidth:'520px'})
+  const mh=ap(el('div','modal-h'),ap(el('div','modal-t'),ex?'Editar empresa':'Nova empresa'))
+  const x=ap(el('button','modal-x'),'×');x.onclick=()=>ov.remove();mh.appendChild(x)
+  const mb=el('div','modal-b')
+
+  const mkInp=(label,key,ph,type)=>{
+    const g=ap(el('div','form-g'),ap(el('label','form-l'),label))
+    const i=el('input','');i.placeholder=ph||'';i.value=f[key]||'';if(type)i.type=type;i.oninput=e=>f[key]=e.target.value;g.appendChild(i);return g
+  }
+
+  ap(mb,mkInp('Nome da empresa *','name','Ex: Loja XYZ Ltda'))
+  const r1=el('div','form-row')
+  ap(r1,mkInp('CNPJ / CPF','document','00.000.000/0000-00'),mkInp('E-mail geral','email','contato@empresa.com','email'))
+  const r2=el('div','form-row')
+  ap(r2,mkInp('Telefone','phone','(11) 99999-9999'),mkInp('Endereço','address','Cidade, UF'))
+  mb.appendChild(r1);mb.appendChild(r2)
+
+  const ng=ap(el('div','form-g'),ap(el('label','form-l'),'Observações'))
+  const ni=el('textarea','',{resize:'vertical'});ni.rows=3;ni.placeholder='Detalhes adicionais...';ni.value=f.notes||'';ni.oninput=e=>f.notes=e.target.value;ng.appendChild(ni)
+  mb.appendChild(ng)
+
+  const mf=el('div','modal-f')
+  const can=ap(el('button','btn btn-s'),'Cancelar');can.onclick=()=>ov.remove()
+  const sv=ap(el('button','btn btn-p'),ex?'Salvar':'Criar empresa')
+  sv.onclick=async()=>{
+    if(!f.name.trim()){alert('Preencha o nome da empresa.');return}
+    sv.disabled=true;sv.textContent='Salvando...'
+    try{
+      const data={name:f.name,document:f.document||'',email:f.email||'',phone:f.phone||'',address:f.address||'',notes:f.notes||'',updatedAt:serverTimestamp()}
+      if(ex){
+        if(companies.find(co=>co.id===ex.id))await updateDoc(doc(db,'companies',ex.id),data)
+        else{await deleteDoc(doc(db,'clients',ex.id));await setDoc(doc(db,'companies',ex.id),{...data,createdBy:CU.uid,createdByName:CP.name,createdAt:serverTimestamp()})}
+      } else await addDoc(collection(db,'companies'),{...data,createdBy:CU.uid,createdByName:CP.name,createdAt:serverTimestamp()})
+      ov.remove()
+    }catch(e){alert('Erro: '+e.message);sv.disabled=false;sv.textContent=ex?'Salvar':'Criar empresa'}
+  }
+  ap(mf,can,sv);ap(mo,mh,mb,mf);ov.appendChild(mo);document.body.appendChild(ov)
+}
+
+function openCompanyDetail(company){
+  const name=company.name||company.companyName||company.contactName||'Empresa'
+  const ov=el('div','overlay',{alignItems:'flex-start',paddingTop:'20px'})
+  const mo=el('div','',{background:'#fff',borderRadius:'14px',width:'100%',maxWidth:'720px',maxHeight:'90vh',overflow:'auto',boxShadow:'0 25px 60px rgba(0,0,0,.3)',margin:'auto'})
+
+  const mh=ap(el('div','modal-h'),ap(el('div','flex aic g10'),av(name,32),ap(el('div','modal-t'),name)))
+  const x=ap(el('button','modal-x'),'×');x.onclick=()=>ov.remove();mh.appendChild(x)
+  const mb=el('div','modal-b')
+
+  // Info da empresa
+  const info=el('div','',{background:'#F8FAFB',border:'1px solid var(--brd)',borderRadius:'10px',padding:'12px 16px',marginBottom:'16px'})
+  const row=(l,v)=>v?ap(el('div','flex g8 mb4'),ap(el('span','f12 fw6 tc3',{minWidth:'90px'}),l+':'),ap(el('span','f13'),v)):null
+  ;[
+    row('CNPJ/CPF',company.document),
+    row('E-mail',company.email),
+    row('Telefone',company.phone),
+    row('Endereço',company.address),
+    row('Observações',company.notes),
+  ].filter(Boolean).forEach(r=>info.appendChild(r))
+  const editRow=el('div','flex g8 mt8')
+  const editBtn=ap(el('button','btn btn-s btn-sm'),'✏ Editar dados da empresa');editBtn.onclick=()=>{ov.remove();openCompanyModal(company)}
+  ap(editRow,editBtn);info.appendChild(editRow)
+  mb.appendChild(info)
+
+  // Usuários da empresa
+  const usersHeader=el('div','flex aic jcsb mb8')
+  ap(usersHeader,ap(el('h3','',{fontSize:'14px',fontWeight:'700'}),'👥 Contatos / Usuários da empresa'))
+  const addUserBtn=ap(el('button','btn btn-p btn-sm'),'+ Adicionar contato')
+  addUserBtn.onclick=()=>openCompanyUserModal(company.id,null,()=>{ov.remove();openCompanyDetail(company)})
+  usersHeader.appendChild(addUserBtn)
+  mb.appendChild(usersHeader)
+
+  const compUsers=companyUsers.filter(u=>u.companyId===company.id)
+  if(!compUsers.length){
+    ap(mb,ap(el('div','',{padding:'20px',textAlign:'center',color:'var(--t3)',background:'#F8FAFB',border:'1px dashed var(--brd)',borderRadius:'10px'}),ap(el('div','',{fontSize:'32px',marginBottom:'8px'}),'👤'),ap(el('div','f12'),'Nenhum contato cadastrado para esta empresa.'),ap(el('div','f11 tc3 mt4'),'Adicione as pessoas que trabalham nesta empresa.')))
+  } else {
+    const uList=el('div','',{display:'flex',flexDirection:'column',gap:'6px'})
+    compUsers.forEach(u=>{
+      const uRow=el('div','flex aic g10',{padding:'10px 12px',background:'#fff',border:'1px solid var(--brd)',borderRadius:'8px'})
+      ap(uRow,av(u.name,32))
+      const uMain=el('div','',{flex:'1'})
+      ap(uMain,ap(el('div','fw6 f13'),u.name+(u.role?' · '+u.role:'')))
+      const uMeta=el('div','flex g8',{flexWrap:'wrap'})
+      if(u.email)ap(uMeta,ap(el('span','f11 tc2'),'✉ '+u.email))
+      if(u.phone)ap(uMeta,ap(el('span','f11 tc2'),'📱 '+u.phone))
+      uMain.appendChild(uMeta)
+      uRow.appendChild(uMain)
+      const uEdit=ap(el('button','btn btn-s btn-xs'),'✏');uEdit.onclick=()=>openCompanyUserModal(company.id,u,()=>{ov.remove();openCompanyDetail(company)})
+      const uDel=ap(el('button','btn btn-d btn-xs'),'×');uDel.onclick=async()=>{if(confirm('Remover '+u.name+'?')){await deleteDoc(doc(db,'companyUsers',u.id));ov.remove();openCompanyDetail(company)}}
+      ap(uRow,uEdit,uDel);uList.appendChild(uRow)
+    })
+    mb.appendChild(uList)
+  }
+
+  const mf=el('div','modal-f')
+  const closeBtn=ap(el('button','btn btn-s'),'Fechar');closeBtn.onclick=()=>ov.remove()
+  ap(mf,closeBtn);ap(mo,mh,mb,mf);ov.appendChild(mo);document.body.appendChild(ov)
+}
+
+function openCompanyUserModal(companyId,ex,onSaved){
+  let f=ex?{...ex}:{name:'',role:'',email:'',phone:''}
+  const ov=el('div','overlay');const mo=el('div','modal',{maxWidth:'440px'})
+  const company=companies.find(c=>c.id===companyId)||clients.find(c=>c.id===companyId)
+  const compName=company?.name||company?.companyName||company?.contactName||''
+  const mh=ap(el('div','modal-h'),ap(el('div','modal-t'),(ex?'Editar contato':'Novo contato')+' — '+compName))
+  const x=ap(el('button','modal-x'),'×');x.onclick=()=>ov.remove();mh.appendChild(x)
+  const mb=el('div','modal-b')
+
+  const mkInp=(label,key,ph,type)=>{
+    const g=ap(el('div','form-g'),ap(el('label','form-l'),label))
+    const i=el('input','');i.placeholder=ph||'';i.value=f[key]||'';if(type)i.type=type;i.oninput=e=>f[key]=e.target.value;g.appendChild(i);return g
+  }
+
+  ap(mb,mkInp('Nome da pessoa *','name','Ex: João Silva'),mkInp('Cargo / Função','role','Ex: Financeiro, Comercial...'),mkInp('E-mail','email','joao@empresa.com','email'),mkInp('Telefone / WhatsApp','phone','(11) 99999-9999'))
+
+  const mf=el('div','modal-f')
+  const can=ap(el('button','btn btn-s'),'Cancelar');can.onclick=()=>ov.remove()
+  const sv=ap(el('button','btn btn-p'),ex?'Salvar':'Adicionar')
+  sv.onclick=async()=>{
+    if(!f.name.trim()){alert('Preencha o nome.');return}
+    sv.disabled=true;sv.textContent='Salvando...'
+    try{
+      const data={companyId,companyName:compName,name:f.name,role:f.role||'',email:f.email||'',phone:f.phone||'',updatedAt:serverTimestamp()}
+      if(ex)await updateDoc(doc(db,'companyUsers',ex.id),data)
+      else await addDoc(collection(db,'companyUsers'),{...data,createdBy:CU.uid,createdAt:serverTimestamp()})
+      ov.remove();if(onSaved)onSaved()
+    }catch(e){alert('Erro: '+e.message);sv.disabled=false;sv.textContent=ex?'Salvar':'Adicionar'}
+  }
+  ap(mf,can,sv);ap(mo,mh,mb,mf);ov.appendChild(mo);document.body.appendChild(ov)
+}
+
 // ── TREINAMENTOS ─────────────────────────────────────────────
 function buildTrainings(){
   const isA=CP?.role==='admin'
@@ -2289,48 +2501,61 @@ function buildTrainings(){
 }
 
 function openTrainingModal(ex=null){
-  let f=ex?{...ex}:{clienteName:'',clienteEmail:'',assunto:'',status:'solicitado',responsavelId:'',responsavelName:'',dataAgendada:'',dataRealizada:'',duracaoMin:'',observacoes:''}
+  let f=ex?{...ex}:{companyId:'',clienteName:'',clienteEmail:'',companyUserId:'',contactName:'',contactEmail:'',assunto:'',status:'solicitado',responsavelId:'',responsavelName:'',dataAgendada:'',dataRealizada:'',duracaoMin:'',observacoes:''}
   const ov=el('div','overlay');const mo=el('div','modal',{maxWidth:'560px'})
   const mh=ap(el('div','modal-h'),ap(el('div','modal-t'),ex?'Editar treinamento':'Novo treinamento'))
   const x=ap(el('button','modal-x'),'×');x.onclick=()=>ov.remove();mh.appendChild(x)
   const mb=el('div','modal-b')
 
-  // Cliente (do cadastro de clientes + portal)
-  const cg=ap(el('div','form-g'),ap(el('label','form-l'),'Cliente'))
+  // Empresa + contato da empresa
+  const cg=ap(el('div','form-g'),ap(el('label','form-l'),'Empresa'))
   const cs=el('select','')
-  // Combinar clientes do cadastro + portal
-  const allClients=[
-    ...clients.map(c=>({name:c.companyName||c.contactName,email:c.email||'',source:'cadastro',id:c.id})),
-    ...((window._portalClients||[]).filter(p=>!clients.find(c=>c.email===p.email)).map(p=>({name:p.email,email:p.email,source:'portal'})))
-  ]
-  if(allClients.length){
-    cs.innerHTML='<option value="">— Selecione o cliente —</option>'+
-      allClients.map(c=>`<option value="${c.email||c.name}" data-name="${c.name}">${c.name}${c.email?' ('+c.email+')':''}</option>`).join('')+
-      '<option value="__outro__">+ Outro (digitar manualmente)</option>'
-  } else {
-    cs.innerHTML='<option value="">— Carregando clientes... —</option>'
-    getDocs(collection(db,'clientPortal')).then(snap=>{
-      const portal=snap.docs.map(d=>d.data())
-      window._portalClients=portal
-      const list=[...clients.map(c=>({name:c.companyName||c.contactName,email:c.email||''})),...portal.map(p=>({name:p.email,email:p.email}))]
-      cs.innerHTML='<option value="">— Selecione o cliente —</option>'+list.map(c=>`<option value="${c.email||c.name}" data-name="${c.name}">${c.name}${c.email?' ('+c.email+')':''}</option>`).join('')+'<option value="__outro__">+ Outro</option>'
-      if(f.clienteEmail)cs.value=f.clienteEmail
-    })
-  }
-  if(f.clienteEmail)cs.value=f.clienteEmail
+  const allCompanies=[...companies,...clients.filter(c=>!companies.find(co=>co.id===c.id))]
+  cs.innerHTML='<option value="">— Selecione a empresa —</option>'+
+    allCompanies.map(c=>{const name=c.name||c.companyName||c.contactName||'';return `<option value="${c.id}" data-name="${name}">${name}</option>`}).join('')+
+    '<option value="__outro__">+ Outro (digitar manualmente)</option>'
+  if(f.companyId)cs.value=f.companyId
   cg.appendChild(cs)
 
-  // Campo manual de cliente (oculto)
+  // Contato da empresa (aparece quando escolhe empresa)
+  const cug=el('div','form-g',{display:'none'})
+  ap(cug,ap(el('label','form-l'),'Pessoa que participou (opcional)'))
+  const cus=el('select','')
+  cug.appendChild(cus)
+
+  function updateContactList(companyId){
+    const opts=companyUsers.filter(u=>u.companyId===companyId)
+    if(opts.length){
+      cug.style.display=''
+      cus.innerHTML='<option value="">— Selecione a pessoa —</option>'+opts.map(u=>`<option value="${u.id}" data-name="${u.name}" data-email="${u.email||''}">${u.name}${u.role?' ('+u.role+')':''}</option>`).join('')
+      if(f.companyUserId)cus.value=f.companyUserId
+    } else {
+      cug.style.display='none'
+    }
+  }
+  cus.onchange=e=>{
+    const opt=e.target.selectedOptions[0]
+    f.companyUserId=e.target.value
+    f.contactName=opt?.dataset?.name||''
+    f.contactEmail=opt?.dataset?.email||''
+  }
+
+  if(f.companyId)updateContactList(f.companyId)
+
+  // Campo manual (oculto)
   const manualG=ap(el('div','form-g',{display:'none'}),ap(el('label','form-l'),'Nome do cliente (manual)'))
   const manualI=el('input','');manualI.placeholder='Nome ou empresa';manualI.value=f.clienteName||'';manualI.oninput=e=>f.clienteName=e.target.value;manualG.appendChild(manualI)
 
   cs.onchange=e=>{
-    if(e.target.value==='__outro__'){manualG.style.display='';f.clienteEmail='';f.clienteName=''}
-    else{
+    if(e.target.value==='__outro__'){
+      manualG.style.display='';cug.style.display='none'
+      f.companyId='';f.clienteEmail='';f.clienteName=''
+    } else {
       manualG.style.display='none'
-      f.clienteEmail=e.target.value
       const opt=e.target.selectedOptions[0]
-      f.clienteName=opt?.dataset?.name||e.target.value
+      f.companyId=e.target.value
+      f.clienteName=opt?.dataset?.name||''
+      updateContactList(e.target.value)
     }
   }
 
@@ -2341,7 +2566,28 @@ function openTrainingModal(ex=null){
   // Status + Responsável
   const r1=el('div','form-row')
   const stg=ap(el('div','form-g',{marginBottom:'0'}),ap(el('label','form-l'),'Status'))
-  const sts=el('select','');sts.innerHTML=Object.entries(TRAIN_ST).map(([k,v])=>`<option value="${k}">${v.l}</option>`).join('');sts.value=f.status||'solicitado';sts.onchange=e=>f.status=e.target.value;stg.appendChild(sts)
+  const sts=el('select','')
+  sts.innerHTML=Object.entries(TRAIN_ST).map(([k,v])=>{
+    const disabled=(k==='concluido'&&!ex?.signedAt&&!ex?.forcedConclusion)?' disabled':''
+    return `<option value="${k}"${disabled}>${v.l}${k==='concluido'&&!ex?.signedAt?' 🔒':''}</option>`
+  }).join('')
+  sts.value=f.status||'solicitado';sts.onchange=e=>{
+    if(e.target.value==='concluido'&&!ex?.signedAt&&!ex?.forcedConclusion){
+      // Pede justificativa para forçar conclusão
+      const reason=prompt('⚠️ Este treinamento ainda não foi assinado pelo cliente.\n\nPara marcar como "Concluído" sem assinatura, informe a justificativa (será registrada):')
+      if(!reason||!reason.trim()){sts.value=f.status||'solicitado';return}
+      f.status='concluido';f.forcedConclusion=true;f.forcedReason=reason.trim();f.forcedBy=CP.name;f.forcedAt=new Date().toISOString()
+    } else f.status=e.target.value
+  }
+  stg.appendChild(sts)
+  if(!ex?.signedAt&&!ex?.forcedConclusion){
+    const hint=ap(el('p','f11 tc3',{marginTop:'4px',lineHeight:'1.4'}),'💡 O status "Concluído" só é liberado após a assinatura do cliente via link.')
+    stg.appendChild(hint)
+  }
+  if(ex?.forcedConclusion){
+    const warn=ap(el('div','',{marginTop:'6px',padding:'6px 10px',background:'#FBF5E9',border:'1px solid #E8D2A6',borderRadius:'6px',fontSize:'11px',color:'#9C6615'}),'⚠ Conclusão forçada por '+(ex.forcedBy||'-')+': '+(ex.forcedReason||''))
+    stg.appendChild(warn)
+  }
   const rg=ap(el('div','form-g',{marginBottom:'0'}),ap(el('label','form-l'),'Responsável (equipe)'))
   const rs=el('select','');rs.innerHTML='<option value="">— Selecione —</option>'+users.map(u=>`<option value="${u.id}">${u.name}</option>`).join('');rs.value=f.responsavelId||'';rs.onchange=e=>{f.responsavelId=e.target.value;f.responsavelName=users.find(u=>u.id===e.target.value)?.name||''};rg.appendChild(rs)
   ap(r1,stg,rg)
@@ -2362,7 +2608,7 @@ function openTrainingModal(ex=null){
   const og=ap(el('div','form-g'),ap(el('label','form-l'),'Observações'))
   const oi=el('textarea','',{resize:'vertical'});oi.rows=3;oi.placeholder='Detalhes do treinamento...';oi.value=f.observacoes||'';oi.oninput=e=>f.observacoes=e.target.value;og.appendChild(oi)
 
-  ap(mb,cg,manualG,ag,r1,r2,dug,og)
+  ap(mb,cg,cug,manualG,ag,r1,r2,dug,og)
 
   const mf=el('div','modal-f')
   const can=ap(el('button','btn btn-s'),'Cancelar');can.onclick=()=>ov.remove()
@@ -2371,7 +2617,7 @@ function openTrainingModal(ex=null){
     if(!f.assunto.trim()){ai.style.borderColor='var(--red)';ai.focus();return}
     sv.disabled=true;sv.textContent='Salvando...'
     try{
-      const data={clienteName:f.clienteName||'',clienteEmail:f.clienteEmail||'',assunto:f.assunto,status:f.status||'solicitado',responsavelId:f.responsavelId||'',responsavelName:f.responsavelName||'',dataAgendada:f.dataAgendada||'',dataRealizada:f.dataRealizada||'',duracaoMin:f.duracaoMin?Number(f.duracaoMin):null,observacoes:f.observacoes||'',updatedAt:serverTimestamp()}
+      const data={companyId:f.companyId||'',companyUserId:f.companyUserId||'',contactName:f.contactName||'',contactEmail:f.contactEmail||'',clienteName:f.clienteName||'',clienteEmail:f.clienteEmail||'',assunto:f.assunto,status:f.status||'solicitado',responsavelId:f.responsavelId||'',responsavelName:f.responsavelName||'',dataAgendada:f.dataAgendada||'',dataRealizada:f.dataRealizada||'',duracaoMin:f.duracaoMin?Number(f.duracaoMin):null,observacoes:f.observacoes||'',forcedConclusion:f.forcedConclusion||false,forcedReason:f.forcedReason||'',forcedBy:f.forcedBy||'',forcedAt:f.forcedAt||'',updatedAt:serverTimestamp()}
       if(ex)await updateDoc(doc(db,'trainings',ex.id),data)
       else await addDoc(collection(db,'trainings'),{...data,createdBy:CU.uid,createdByName:CP.name,createdAt:serverTimestamp()})
       ov.remove()
@@ -2633,8 +2879,8 @@ function generateTrainingReportPDF(data,filters){
   pw.document.close()
 }
 
-function buildPortalPanel(){
-  const w=el('div','page')
+function buildPortalPanelInner(){
+  const w=el('div','')
   ap(w,ap(el('h2','mb16',{fontSize:'16px',fontWeight:'700'}),'Portal do Cliente'))
 
   // Link do portal
